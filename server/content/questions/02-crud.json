@@ -1,0 +1,348 @@
+[
+  {
+    "id": "crud-q-01", "moduleId": 2, "topic": "insertOne", "difficulty": "easy", "type": "mcq",
+    "text": "What does db.books.insertOne({ title: 'Dune', price: 14.99 }) return on success?",
+    "options": [
+      "The number 1",
+      "{ acknowledged: true, insertedId: ObjectId('...') }",
+      "The inserted document",
+      "true"
+    ],
+    "correctAnswer": "{ acknowledged: true, insertedId: ObjectId('...') }",
+    "explanation": "insertOne() returns an InsertOneResult object with acknowledged (was the write confirmed?) and insertedId (the _id of the new document).",
+    "hint": "It tells you the write was acknowledged and gives you back the new document's ID.",
+    "sqlEquivalent": "INSERT INTO books (title, price) VALUES ('Dune', 14.99); — returns row count in SQL"
+  },
+  {
+    "id": "crud-q-02", "moduleId": 2, "topic": "findOne", "difficulty": "easy", "type": "mcq",
+    "text": "What does findOne() return when no document matches the filter?",
+    "options": ["An empty array []", "An empty object {}", "null", "undefined"],
+    "correctAnswer": "null",
+    "explanation": "findOne() returns null when no document matches. This is different from find() which always returns a cursor (even an empty one). Always check for null before using the result.",
+    "hint": "It returns something that means 'nothing found' — not an empty array.",
+    "sqlEquivalent": "SELECT ... WHERE ... LIMIT 1 — returns 0 rows in SQL"
+  },
+  {
+    "id": "crud-q-03", "moduleId": 2, "topic": "updateOne", "difficulty": "easy", "type": "mcq",
+    "text": "You run: db.books.updateOne({ title: '1984' }, { price: 20 }). What happens?",
+    "options": [
+      "The price field is updated to 20",
+      "The entire document is replaced with { price: 20 }",
+      "An error is thrown because you must use an update operator",
+      "The update is ignored since there's no $set"
+    ],
+    "correctAnswer": "The entire document is replaced with { price: 20 }",
+    "explanation": "Without an update operator like $set, MongoDB replaces the entire document with the provided object. The result is { _id: ObjectId(...), price: 20 } — all other fields are lost! Always use $set to update specific fields.",
+    "hint": "Without $set, MongoDB treats the second argument as the complete replacement document.",
+    "sqlEquivalent": "This would be like UPDATE books SET * = { price: 20 } which is invalid SQL — SQL always requires you to name specific columns"
+  },
+  {
+    "id": "crud-q-04", "moduleId": 2, "topic": "deleteOne", "difficulty": "easy", "type": "fill-in-blank",
+    "text": "Complete this query to delete the first book with the title 'Animal Farm':",
+    "codeTemplate": "db.books.______({ title: 'Animal Farm' })",
+    "correctAnswer": "deleteOne",
+    "explanation": "deleteOne() removes the first matching document. If you want to remove all matching documents, use deleteMany().",
+    "hint": "It starts with 'delete' and ends with 'One'.",
+    "sqlEquivalent": "DELETE FROM books WHERE title = 'Animal Farm' LIMIT 1"
+  },
+  {
+    "id": "crud-q-05", "moduleId": 2, "topic": "find", "difficulty": "easy", "type": "fill-in-blank",
+    "text": "Complete this query to find all books where inStock is true:",
+    "codeTemplate": "db.books.______({ inStock: true })",
+    "correctAnswer": "find",
+    "explanation": "find() accepts a filter object as the first argument. Passing { inStock: true } returns all documents where the inStock field equals true.",
+    "hint": "The read method that returns multiple documents.",
+    "sqlEquivalent": "SELECT * FROM books WHERE in_stock = true"
+  },
+  {
+    "id": "crud-q-06", "moduleId": 2, "topic": "updateOne", "difficulty": "easy", "type": "mcq",
+    "text": "Which update operator increments a numeric field by a given amount?",
+    "options": ["$set", "$add", "$inc", "$plus"],
+    "correctAnswer": "$inc",
+    "explanation": "$inc increments (or decrements, with a negative value) a numeric field. Example: { $inc: { price: 5 } } adds 5 to the price. { $inc: { price: -5 } } subtracts 5.",
+    "hint": "It's short for 'increment'.",
+    "sqlEquivalent": "UPDATE books SET price = price + 5"
+  },
+  {
+    "id": "crud-q-07", "moduleId": 2, "topic": "insertMany", "difficulty": "easy", "type": "mcq",
+    "text": "What does db.books.insertMany([doc1, doc2, doc3]) return?",
+    "options": [
+      "The number of inserted documents (3)",
+      "{ acknowledged: true, insertedIds: { '0': ObjectId, '1': ObjectId, '2': ObjectId } }",
+      "An array of the inserted documents",
+      "true"
+    ],
+    "correctAnswer": "{ acknowledged: true, insertedIds: { '0': ObjectId, '1': ObjectId, '2': ObjectId } }",
+    "explanation": "insertMany() returns an InsertManyResult with acknowledged and insertedIds — an object mapping the position index to the _id of each inserted document.",
+    "hint": "Similar to insertOne but with multiple IDs."
+  },
+  {
+    "id": "crud-q-08", "moduleId": 2, "topic": "find", "difficulty": "easy", "type": "mcq",
+    "text": "How do you sort find() results by price in descending order?",
+    "options": [
+      ".sort({ price: 'DESC' })",
+      ".sort({ price: -1 })",
+      ".sort({ price: false })",
+      ".orderBy({ price: 'desc' })"
+    ],
+    "correctAnswer": ".sort({ price: -1 })",
+    "explanation": "In MongoDB sort, 1 = ascending (ASC) and -1 = descending (DESC). Chain .sort() after find().",
+    "hint": "-1 = descending, 1 = ascending.",
+    "sqlEquivalent": "ORDER BY price DESC"
+  },
+  {
+    "id": "crud-q-09", "moduleId": 2, "topic": "find", "difficulty": "easy", "type": "mcq",
+    "text": "What is the purpose of the second argument to find() — db.books.find(filter, projection)?",
+    "options": [
+      "Sort order",
+      "Which fields to include or exclude in results",
+      "The maximum number of documents to return",
+      "Skip count"
+    ],
+    "correctAnswer": "Which fields to include or exclude in results",
+    "explanation": "The projection object controls which fields are returned. Use 1 to include, 0 to exclude. Example: { title: 1, price: 1, _id: 0 } returns only title and price, without _id.",
+    "hint": "Like SELECT specific columns in SQL.",
+    "sqlEquivalent": "SELECT title, price FROM books"
+  },
+  {
+    "id": "crud-q-10", "moduleId": 2, "topic": "updateOne", "difficulty": "easy", "type": "mcq",
+    "text": "Which update operator removes a field from a document entirely?",
+    "options": ["$delete", "$remove", "$unset", "$null"],
+    "correctAnswer": "$unset",
+    "explanation": "$unset removes the field entirely from the document. Usage: { $unset: { fieldName: '' } } — the empty string value is ignored; any value works.",
+    "hint": "It 'un-sets' a field — makes it not exist.",
+    "sqlEquivalent": "There's no SQL equivalent — closest is UPDATE books SET promo_code = NULL"
+  },
+  {
+    "id": "crud-q-11", "moduleId": 2, "topic": "insertMany", "difficulty": "medium", "type": "mcq",
+    "text": "You call insertMany([doc1, doc2, doc3], { ordered: false }). doc2 fails due to a duplicate key. What happens?",
+    "options": [
+      "All three inserts are rolled back",
+      "doc1 succeeds, doc2 fails, doc3 is skipped",
+      "doc1 succeeds, doc2 fails, doc3 still attempts to insert",
+      "An error is thrown and nothing is inserted"
+    ],
+    "correctAnswer": "doc1 succeeds, doc2 fails, doc3 still attempts to insert",
+    "explanation": "With { ordered: false }, MongoDB continues inserting remaining documents even if one fails. Without this option (default ordered: true), insertion stops at the first error.",
+    "hint": "ordered: false means 'don't stop on error'.",
+    "sqlEquivalent": "No direct SQL equivalent — PostgreSQL always rolls back the whole INSERT on error"
+  },
+  {
+    "id": "crud-q-12", "moduleId": 2, "topic": "updateMany", "difficulty": "medium", "type": "fill-in-blank",
+    "text": "Update the price of ALL books to add a $2 increase. Fill in the blanks:",
+    "codeTemplate": "db.books.______({}, { ______: { price: 2 } })",
+    "correctAnswer": "updateMany|$inc",
+    "explanation": "updateMany({}, ...) matches all documents (empty filter = match all). $inc: { price: 2 } adds 2 to the current price of every book.",
+    "hint": "Use updateMany for all docs, $inc to add to a number.",
+    "sqlEquivalent": "UPDATE books SET price = price + 2"
+  },
+  {
+    "id": "crud-q-13", "moduleId": 2, "topic": "updateOne", "difficulty": "medium", "type": "fill-in-blank",
+    "text": "Add 'bestseller' to the tags array of the book titled '1984':",
+    "codeTemplate": "db.books.updateOne({ title: '1984' }, { ______: { tags: 'bestseller' } })",
+    "correctAnswer": "$push",
+    "explanation": "$push appends an element to an array field. If the field doesn't exist, MongoDB creates it. To add multiple elements at once, use { $push: { tags: { $each: ['a', 'b'] } } }.",
+    "hint": "Push something onto an array.",
+    "sqlEquivalent": "No direct SQL equivalent — would require INSERT into junction table"
+  },
+  {
+    "id": "crud-q-14", "moduleId": 2, "topic": "updateMany", "difficulty": "medium", "type": "fill-in-blank",
+    "text": "Apply a 10% discount (multiply price by 0.9) to all books published before the year 2000:",
+    "codeTemplate": "db.books.updateMany({ publishedYear: { ______: 2000 } }, { ______: { price: 0.9 } })",
+    "correctAnswer": "$lt|$mul",
+    "explanation": "$lt means 'less than'. $mul multiplies the existing field value by the given number. { $mul: { price: 0.9 } } multiplies price by 0.9 (a 10% discount).",
+    "hint": "$lt = less than. There's a multiply operator that starts with $mul.",
+    "sqlEquivalent": "UPDATE books SET price = price * 0.9 WHERE published_year < 2000"
+  },
+  {
+    "id": "crud-q-15", "moduleId": 2, "topic": "updateOne", "difficulty": "medium", "type": "mcq",
+    "text": "What does the upsert option do in updateOne?",
+    "options": [
+      "Updates multiple documents matching the filter",
+      "Inserts the document if no match is found, updates it if found",
+      "Returns the document before the update",
+      "Creates a copy of the document before updating"
+    ],
+    "correctAnswer": "Inserts the document if no match is found, updates it if found",
+    "explanation": "Upsert = Update + Insert. If the filter matches a document, it's updated. If no match, a new document is created using the filter + update values.",
+    "hint": "U + psert = Update if exists, Insert if not.",
+    "sqlEquivalent": "INSERT INTO books ... ON CONFLICT DO UPDATE ..."
+  },
+  {
+    "id": "crud-q-16", "moduleId": 2, "topic": "find", "difficulty": "medium", "type": "fill-in-blank",
+    "text": "Return only books with price < 13, showing only title and price (no _id). Fill in the projection:",
+    "codeTemplate": "db.books.find({ price: { $lt: 13 } }, { ______: 1, ______: 1, _id: 0 })",
+    "correctAnswer": "title|price",
+    "explanation": "In the projection object, set fields to 1 to include them. Set _id: 0 to exclude the automatic _id. You cannot mix includes and excludes except for _id.",
+    "hint": "The two fields you want to return.",
+    "sqlEquivalent": "SELECT title, price FROM books WHERE price < 13"
+  },
+  {
+    "id": "crud-q-17", "moduleId": 2, "topic": "deleteMany", "difficulty": "medium", "type": "fill-in-blank",
+    "text": "Delete all books where inStock is false. Fill in the method name:",
+    "codeTemplate": "db.books.______({ inStock: false })",
+    "correctAnswer": "deleteMany",
+    "explanation": "deleteMany() removes all documents matching the filter. deleteOne() only removes the first match.",
+    "hint": "Delete ALL matching documents.",
+    "sqlEquivalent": "DELETE FROM books WHERE in_stock = false"
+  },
+  {
+    "id": "crud-q-18", "moduleId": 2, "topic": "updateOne", "difficulty": "medium", "type": "fix-bug",
+    "text": "This code is supposed to add a 'featured' field to the book '1984', but it has a bug. Find and fix it:\n\ndb.books.updateOne({ title: '1984' }, { featured: true })",
+    "codeTemplate": "db.books.updateOne({ title: '1984' }, { ______: { featured: true } })",
+    "correctAnswer": "$set",
+    "explanation": "Without $set, the update argument is treated as a replacement document — the entire book document would be replaced with { featured: true }, losing all other fields. Always use $set to update specific fields.",
+    "hint": "You need an update operator to tell MongoDB you only want to SET one field."
+  },
+  {
+    "id": "crud-q-19", "moduleId": 2, "topic": "find", "difficulty": "medium", "type": "sql-to-mongo",
+    "text": "Translate this SQL to MongoDB:\n\nSELECT title, authorName FROM books ORDER BY rating DESC LIMIT 5;",
+    "options": [
+      "db.books.find({}, { title: 1, authorName: 1 }).sort({ rating: -1 }).limit(5)",
+      "db.books.find({}, { title: 1, authorName: 1 }).sort({ rating: 'DESC' }).limit(5)",
+      "db.books.find({ limit: 5 }, { title: 1, authorName: 1 }).orderBy({ rating: -1 })",
+      "db.books.find({}).select('title authorName').sort('-rating').limit(5)"
+    ],
+    "correctAnswer": "db.books.find({}, { title: 1, authorName: 1 }).sort({ rating: -1 }).limit(5)",
+    "explanation": "Projection selects fields (like SELECT columns), .sort({ rating: -1 }) = ORDER BY rating DESC, .limit(5) = LIMIT 5. Empty filter {} = no WHERE clause.",
+    "hint": "-1 in sort = DESC in SQL.",
+    "sqlEquivalent": "SELECT title, authorName FROM books ORDER BY rating DESC LIMIT 5"
+  },
+  {
+    "id": "crud-q-20", "moduleId": 2, "topic": "updateOne", "difficulty": "medium", "type": "mcq",
+    "text": "db.books.updateMany({ genres: 'fiction' }, { $set: { label: 'Fiction Classic' } }) — what does this return?",
+    "options": [
+      "The number of updated documents",
+      "{ acknowledged: true, matchedCount: N, modifiedCount: M }",
+      "All updated documents",
+      "true or false"
+    ],
+    "correctAnswer": "{ acknowledged: true, matchedCount: N, modifiedCount: M }",
+    "explanation": "Update operations return an UpdateResult with matchedCount (documents matching the filter) and modifiedCount (documents actually changed). modifiedCount can be less than matchedCount if some docs already had the new value.",
+    "hint": "It tells you how many matched and how many were actually changed."
+  },
+  {
+    "id": "crud-q-21", "moduleId": 2, "topic": "updateMany", "difficulty": "hard", "type": "fill-in-blank",
+    "text": "Use arrayFilters to increase the price of all order items where unitPrice > 10 by $2. Fill in the blanks:",
+    "codeTemplate": "db.orders.updateMany({}, { $inc: { 'items.$[item].unitPrice': 2 } }, { arrayFilters: [{ ______: { $gt: 10 } }] })",
+    "correctAnswer": "'item.unitPrice'",
+    "explanation": "$[item] is a positional filtered operator. The arrayFilters option defines conditions for the placeholder 'item'. This lets you update specific array elements based on their values.",
+    "hint": "The arrayFilter condition references the placeholder name 'item' with a dot-path to the field.",
+    "sqlEquivalent": "No clean SQL equivalent — would need a complex UPDATE with JSON functions in PostgreSQL"
+  },
+  {
+    "id": "crud-q-22", "moduleId": 2, "topic": "find", "difficulty": "hard", "type": "mcq",
+    "text": "What is the difference between find() returning a cursor and findOne() returning a document in Node.js?",
+    "options": [
+      "No difference — both return arrays",
+      "find() returns a lazy cursor; you must call .toArray() or iterate it. findOne() returns the document directly.",
+      "findOne() is faster because it uses an index; find() doesn't",
+      "find() returns a Promise; findOne() is synchronous"
+    ],
+    "correctAnswer": "find() returns a lazy cursor; you must call .toArray() or iterate it. findOne() returns the document directly.",
+    "explanation": "In Node.js, the native driver's find() returns a FindCursor — a lazy iterator that doesn't execute the query until you consume it with .toArray(), .next(), or for-await-of. findOne() executes immediately and resolves to a single document or null.",
+    "hint": "A cursor is like a stream — it doesn't pull all data at once."
+  },
+  {
+    "id": "crud-q-23", "moduleId": 2, "topic": "updateOne", "difficulty": "hard", "type": "fix-bug",
+    "text": "This upsert should create a book called 'New Book' with price 19.99 if it doesn't exist, or update its price if it does. What's wrong?\n\ndb.books.updateOne(\n  { title: 'New Book' },\n  { $set: { price: 19.99, title: 'New Book' } },\n  { update: true }\n)",
+    "codeTemplate": "db.books.updateOne(\n  { title: 'New Book' },\n  { $set: { price: 19.99, title: 'New Book' } },\n  { ______: true }\n)",
+    "correctAnswer": "upsert",
+    "explanation": "The option is { upsert: true }, not { update: true }. upsert: true tells MongoDB to insert a new document if no match is found.",
+    "hint": "The option name is a blend of 'update' and 'insert'."
+  },
+  {
+    "id": "crud-q-24", "moduleId": 2, "topic": "insertMany", "difficulty": "hard", "type": "mcq",
+    "text": "What is the difference between bulk insertMany and individual insertOne calls in a loop?",
+    "options": [
+      "No difference — MongoDB queues writes internally",
+      "insertMany sends one network round trip for all documents; individual insertOne calls each send a separate round trip",
+      "insertMany is atomic across all documents; insertOne calls are each atomic individually",
+      "insertMany validates schema; insertOne does not"
+    ],
+    "correctAnswer": "insertMany sends one network round trip for all documents; individual insertOne calls each send a separate round trip",
+    "explanation": "insertMany batches all documents into a single network request, dramatically reducing latency for bulk inserts. A loop of 1000 insertOne calls would send 1000 round trips.",
+    "hint": "Think about network round trips.",
+    "sqlEquivalent": "INSERT INTO books VALUES (...),(...),(...) vs 1000 separate INSERT statements"
+  },
+  {
+    "id": "crud-q-25", "moduleId": 2, "topic": "updateMany", "difficulty": "hard", "type": "sql-to-mongo",
+    "text": "Translate this SQL:\n\nUPDATE books SET in_stock = false WHERE published_year < 1950 AND price > 14;",
+    "options": [
+      "db.books.updateMany({ publishedYear: { $lt: 1950 }, price: { $gt: 14 } }, { $set: { inStock: false } })",
+      "db.books.updateMany({ publishedYear: { $before: 1950 }, price: { $moreThan: 14 } }, { inStock: false })",
+      "db.books.updateOne({ publishedYear: { $lt: 1950 }, price: { $gt: 14 } }, { $set: { inStock: false } })",
+      "db.books.update({ $and: [{ publishedYear: { $lt: 1950 } }, { price: { $gt: 14 } }] }, { $set: { inStock: false } })"
+    ],
+    "correctAnswer": "db.books.updateMany({ publishedYear: { $lt: 1950 }, price: { $gt: 14 } }, { $set: { inStock: false } })",
+    "explanation": "Multiple fields in the same filter object = implicit AND. $lt = less than (<), $gt = greater than (>). Must use $set to avoid replacing the document.",
+    "hint": "Multiple conditions in the same filter object are AND-ed automatically.",
+    "sqlEquivalent": "UPDATE books SET in_stock = false WHERE published_year < 1950 AND price > 14"
+  },
+  {
+    "id": "crud-q-26", "moduleId": 2, "topic": "find", "difficulty": "hard", "type": "live-query",
+    "text": "Write a query to find all books by 'Haruki Murakami' sorted by rating descending, returning only title and rating (exclude _id).",
+    "expectedQuery": "db.books.find({ authorName: 'Haruki Murakami' }, { title: 1, rating: 1, _id: 0 }).sort({ rating: -1 })",
+    "validationHints": {
+      "filter": { "authorName": "Haruki Murakami" },
+      "projection": { "title": 1, "rating": 1, "_id": 0 },
+      "sort": { "rating": -1 }
+    },
+    "explanation": "Filter by authorName, project only title + rating (excluding _id with _id: 0), and sort by rating -1 (descending).",
+    "hint": "Combine find with projection and sort.",
+    "sqlEquivalent": "SELECT title, rating FROM books WHERE author_name = 'Haruki Murakami' ORDER BY rating DESC"
+  },
+  {
+    "id": "crud-q-27", "moduleId": 2, "topic": "updateMany", "difficulty": "hard", "type": "live-query",
+    "text": "Write a query to remove the 'promoCode' field from ALL books that currently have a null promoCode (use $exists and $unset).",
+    "expectedQuery": "db.books.updateMany({ promoCode: null }, { $unset: { promoCode: '' } })",
+    "validationHints": {
+      "method": "updateMany",
+      "operator": "$unset"
+    },
+    "explanation": "Filter { promoCode: null } matches documents where promoCode is null. $unset removes the field entirely rather than setting it to null.",
+    "hint": "$unset removes a field from the document."
+  },
+  {
+    "id": "crud-q-28", "moduleId": 2, "topic": "find", "difficulty": "hard", "type": "mcq",
+    "text": "You want to use skip/limit for pagination but performance degrades badly on later pages. Why?",
+    "options": [
+      "MongoDB doesn't index limit operations",
+      "skip() must read and discard all N preceding documents even with an index — gets slower as skip increases",
+      "limit() is not supported with indexes",
+      "Pagination requires MongoDB Atlas, not local MongoDB"
+    ],
+    "correctAnswer": "skip() must read and discard all N preceding documents even with an index — gets slower as skip increases",
+    "explanation": "skip(1000) makes MongoDB read 1001 documents and discard the first 1000. For large offsets, use range-based pagination instead: store the last _id seen and query { _id: { $gt: lastSeenId } }.limit(pageSize).",
+    "hint": "skip has to 'walk through' all the documents it's skipping.",
+    "sqlEquivalent": "Same problem exists in SQL with OFFSET — PostgreSQL also degrades with large OFFSET values"
+  },
+  {
+    "id": "crud-q-29", "moduleId": 2, "topic": "updateOne", "difficulty": "hard", "type": "mcq",
+    "text": "findOneAndUpdate() vs updateOne() — what is the key difference?",
+    "options": [
+      "findOneAndUpdate is faster because it uses findOne internally",
+      "findOneAndUpdate returns the document (before or after update); updateOne only returns match/modified counts",
+      "updateOne supports arrayFilters; findOneAndUpdate does not",
+      "findOneAndUpdate is atomic; updateOne is not"
+    ],
+    "correctAnswer": "findOneAndUpdate returns the document (before or after update); updateOne only returns match/modified counts",
+    "explanation": "findOneAndUpdate returns the document itself. By default it returns the pre-update version; pass { returnDocument: 'after' } to get the updated document. Use updateOne when you only care about whether the update succeeded, not the document contents.",
+    "hint": "One returns the document, one returns metadata.",
+    "sqlEquivalent": "UPDATE ... RETURNING * in PostgreSQL (findOneAndUpdate) vs UPDATE (updateOne)"
+  },
+  {
+    "id": "crud-q-30", "moduleId": 2, "topic": "deleteMany", "difficulty": "hard", "type": "mcq",
+    "text": "What is the most efficient way to delete ALL documents from a collection while keeping the collection itself (indexes, etc.)?",
+    "options": [
+      "db.collection.drop() — removes everything",
+      "db.collection.deleteMany({}) — removes all documents",
+      "db.collection.remove() — deprecated but fastest",
+      "Both deleteMany({}) and drop() are equivalent"
+    ],
+    "correctAnswer": "db.collection.deleteMany({}) — removes all documents",
+    "explanation": "deleteMany({}) removes all documents but keeps the collection structure and indexes. drop() removes the entire collection including indexes. Use drop() only if you want to start completely fresh.",
+    "hint": "drop() is more destructive — it removes the collection itself.",
+    "sqlEquivalent": "TRUNCATE TABLE books (deleteMany) vs DROP TABLE books (drop)"
+  }
+]

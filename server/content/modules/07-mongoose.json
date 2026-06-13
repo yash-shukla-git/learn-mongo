@@ -1,0 +1,108 @@
+{
+  "id": 7,
+  "title": "Mongoose ODM",
+  "description": "Add schema validation, models, and middleware to MongoDB with Mongoose — the most popular Node.js ODM.",
+  "icon": "🦦",
+  "lessons": [
+    {
+      "id": 1,
+      "title": "Why Mongoose?",
+      "duration": "8 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "MongoDB is schema-flexible by default, which is powerful but can lead to messy data. **Mongoose** adds an optional schema layer in your application code — like TypeScript types, but at runtime with validation."
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "Native Driver vs Mongoose",
+          "table": [
+            ["", "Native Driver", "Mongoose"],
+            ["Schema", "None — any shape", "Defined in app code"],
+            ["Validation", "Manual", "Built-in with types and validators"],
+            ["Query API", "Raw MongoDB syntax", "Fluent chainable methods"],
+            ["Middleware (hooks)", "None", "pre/post hooks on save, delete, etc."],
+            ["Virtuals", "No", "Yes — computed properties"],
+            ["Analogous to", "pg / node-postgres", "Sequelize / TypeORM"]
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Schemas and Models",
+      "duration": "15 min",
+      "sections": [
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Define a schema and model",
+          "content": "const mongoose = require('mongoose');\n\n// 1. Define the schema\nconst bookSchema = new mongoose.Schema({\n  title:         { type: String,  required: true, trim: true },\n  authorName:    { type: String,  required: true },\n  publishedYear: { type: Number,  min: 1000, max: 2100 },\n  price:         { type: Number,  required: true, min: 0 },\n  genres:        [String],          // array of strings\n  inStock:       { type: Boolean, default: true },\n  rating:        { type: Number,  min: 0, max: 5 },\n  createdAt:     { type: Date,    default: Date.now }\n});\n\n// 2. Create the model (collection name = 'books', pluralized)\nconst Book = mongoose.model('Book', bookSchema);\n\n// 3. Use it\nconst book = new Book({ title: '1984', authorName: 'Orwell', price: 12.99 });\nawait book.save();\n\n// Or shorthand:\nawait Book.create({ title: '1984', authorName: 'Orwell', price: 12.99 });"
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Querying with Mongoose",
+          "content": "// Fluent query API\nconst books = await Book\n  .find({ inStock: true })\n  .where('price').lt(15)\n  .select('title price')\n  .sort('-publishedYear')\n  .limit(10)\n  .lean();  // .lean() returns plain JS objects, not Mongoose Documents (faster)\n\n// Mongoose findById (shortcut for findOne({ _id: id }))\nconst book = await Book.findById('507f1f77bcf86cd799439011');\n\n// findByIdAndUpdate — like findOneAndUpdate\nconst updated = await Book.findByIdAndUpdate(\n  id,\n  { $set: { price: 15.99 } },\n  { new: true }  // return the updated document\n);"
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Virtuals and middleware (hooks)",
+          "content": "// Virtuals — computed properties not stored in DB\nbookSchema.virtual('priceWithTax').get(function() {\n  return (this.price * 1.1).toFixed(2);\n});\n\n// Pre-save hook — run before every save()\nbookSchema.pre('save', function(next) {\n  this.title = this.title.trim();\n  next();\n});\n\n// Post-save hook — run after save\nbookSchema.post('save', function(doc) {\n  console.log(`Saved: ${doc.title}`);\n});"
+        },
+        {
+          "type": "tip",
+          "content": "**When to use Mongoose vs native driver:** Mongoose shines for apps with complex business logic, validation rules, and hooks. Use the native driver when you need maximum performance, run aggregation-heavy workloads, or are building simple scripts and migrations."
+        },
+        {
+          "type": "warning",
+          "content": "**Never use arrow functions in Mongoose hooks or virtuals.** Arrow functions do not have their own `this` — they inherit it from the surrounding scope. Mongoose relies on `this` pointing to the current document. Always use `function() {}`, not `() => {}`."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Arrow function vs regular function in hooks",
+          "content": "// ❌ WRONG — arrow function, 'this' is undefined or wrong\nbookSchema.pre('save', async () => {\n  this.title = this.title.trim();  // 'this' is NOT the document!\n});\n\n// ✅ CORRECT — regular function, 'this' is the document\nbookSchema.pre('save', async function() {\n  this.title = this.title.trim();  // 'this' IS the document being saved\n});\n\n// Same rule for virtuals:\n// ❌ bookSchema.virtual('fullName').get(() => `${this.firstName} ${this.lastName}`);\n// ✅ bookSchema.virtual('fullName').get(function() { return `${this.firstName} ${this.lastName}`; });"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Validation, Custom Validators, and .lean()",
+      "duration": "10 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "**Schema-level validators** are built-in options like `required`, `min`, `max`, `minLength`, `maxLength`, `match` (regex), and `enum` (allowlist). They run automatically on `save()` and `create()`. If validation fails, Mongoose throws a `ValidationError` and nothing is written to the database."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Built-in validators",
+          "content": "const bookSchema = new mongoose.Schema({\n  title:  { type: String, required: true, trim: true, minLength: 1 },\n  price:  { type: Number, required: true, min: 0 },\n  rating: { type: Number, min: 0, max: 5 },\n  status: { type: String, enum: ['draft', 'published', 'archived'] },\n  // enum restricts value to one of the listed options\n});\n\n// Saving with invalid data throws ValidationError:\nconst b = new Book({ title: '', price: -5, status: 'unknown' });\nawait b.save();  // throws: title fails minLength, price fails min, status fails enum"
+        },
+        {
+          "type": "text",
+          "content": "**Custom validators** let you write any logic — async DB lookups, cross-field checks, complex business rules. Use the `validate` option with a `validator` function and a `message`."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Custom validator",
+          "content": "const bookSchema = new mongoose.Schema({\n  isbn: {\n    type: String,\n    validate: {\n      validator: function(v) {\n        return /^\\d{13}$/.test(v);  // must be exactly 13 digits\n      },\n      message: props => `${props.value} is not a valid 13-digit ISBN`\n    }\n  }\n});"
+        },
+        {
+          "type": "text",
+          "content": "**`.lean()` returns plain JavaScript objects instead of Mongoose Documents.** Mongoose Documents have extra methods, getters, and change-tracking overhead. When you only need to read data and don't need to call `.save()` on the results, `.lean()` is significantly faster."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": ".lean() for read-only queries",
+          "content": "// Without .lean() — returns Mongoose Document objects with full overhead\nconst books = await Book.find({ inStock: true });\n// books[0].save() works, books[0].toObject() works, but slower\n\n// With .lean() — returns plain JS objects, faster\nconst books = await Book.find({ inStock: true }).lean();\n// books[0] is just { _id, title, price, ... } — no Mongoose methods\n// Cannot call books[0].save() — use for display/read-only operations"
+        }
+      ]
+    }
+  ]
+}

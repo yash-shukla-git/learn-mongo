@@ -1,0 +1,147 @@
+{
+  "id": 5,
+  "title": "Aggregation Pipeline",
+  "description": "Transform, group, and join data using MongoDB's powerful aggregation pipeline — the equivalent of SQL GROUP BY, HAVING, and JOIN.",
+  "icon": "🔀",
+  "lessons": [
+    {
+      "id": 1,
+      "title": "Pipeline Basics",
+      "duration": "10 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "The aggregation pipeline is a sequence of **stages** — each stage transforms the documents and passes results to the next. Think of it as a Unix pipe: `query | filter | group | sort | project`."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Your first pipeline",
+          "content": "// SQL: SELECT genres, COUNT(*) FROM books WHERE inStock = true GROUP BY genres\ndb.books.aggregate([\n  { $match:   { inStock: true } },            // WHERE clause\n  { $unwind:  '$genres' },                    // flatten the genres array\n  { $group:   { _id: '$genres', count: { $sum: 1 } } },  // GROUP BY + COUNT\n  { $sort:    { count: -1 } },                // ORDER BY count DESC\n  { $limit:   5 }                             // LIMIT 5\n])"
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "SQL clauses → Pipeline stages",
+          "table": [
+            ["SQL clause", "Pipeline stage", "Purpose"],
+            ["WHERE", "$match", "Filter documents"],
+            ["SELECT col, expr", "$project", "Shape output fields"],
+            ["GROUP BY + aggregates", "$group", "Group + compute aggregates"],
+            ["ORDER BY", "$sort", "Sort results"],
+            ["LIMIT / OFFSET", "$limit / $skip", "Paginate results"],
+            ["JOIN", "$lookup", "Join another collection"],
+            ["HAVING", "$match (after $group)", "Filter on aggregated values"],
+            ["UNNEST / LATERAL", "$unwind", "Flatten array fields"]
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "$group and Accumulators",
+      "duration": "12 min",
+      "sections": [
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Aggregation accumulators",
+          "content": "db.books.aggregate([\n  {\n    $group: {\n      _id: '$authorName',           // GROUP BY authorName\n      totalBooks:  { $sum: 1 },     // COUNT(*)\n      avgPrice:    { $avg: '$price' },    // AVG(price)\n      minPrice:    { $min: '$price' },    // MIN(price)\n      maxPrice:    { $max: '$price' },    // MAX(price)\n      totalRevenue:{ $sum: '$price' },    // SUM(price)\n      titles:      { $push: '$title' }    // collect into array (no SQL equiv)\n    }\n  },\n  { $sort: { totalBooks: -1 } }\n])"
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "$match after $group (HAVING equivalent)",
+          "content": "// SQL: SELECT authorName, COUNT(*) as cnt FROM books\n//      GROUP BY authorName HAVING COUNT(*) > 2\ndb.books.aggregate([\n  { $group:  { _id: '$authorName', cnt: { $sum: 1 } } },\n  { $match:  { cnt: { $gt: 2 } } }   // HAVING — filter on grouped results\n])"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "$lookup — Joining Collections",
+      "duration": "15 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "`$lookup` is MongoDB's version of a SQL JOIN. It lets you combine documents from two collections."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "$lookup — basic join (like LEFT JOIN)",
+          "content": "// SQL: SELECT b.title, a.name, a.nationality\n//      FROM books b LEFT JOIN authors a ON b.authorId = a._id\ndb.books.aggregate([\n  {\n    $lookup: {\n      from:         'authors',       // the collection to join\n      localField:   'authorId',      // field in books\n      foreignField: '_id',           // field in authors\n      as:           'authorInfo'     // output array field name\n    }\n  },\n  { $unwind: '$authorInfo' },        // flatten the single-element array\n  {\n    $project: {\n      title: 1,\n      'authorInfo.name': 1,\n      'authorInfo.nationality': 1\n    }\n  }\n])"
+        },
+        {
+          "type": "tip",
+          "content": "**$lookup returns an array** even when there's only one match. Use `$unwind` immediately after to flatten it to a single document (like an INNER JOIN). Without `$unwind`, you get a LEFT JOIN that always succeeds."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "$project — reshape documents",
+          "content": "// Include only specific fields\ndb.books.aggregate([\n  { $project: {\n    title:         1,\n    price:         1,\n    _id:           0,       // exclude _id\n    priceWithTax:  { $multiply: ['$price', 1.1] },  // computed field\n    titleUpper:    { $toUpper: '$title' }            // string expression\n  }}\n])"
+        },
+        {
+          "type": "text",
+          "content": "**$addToSet vs $push.** Both are accumulators for `$group`. `$push` collects all values including duplicates into an array. `$addToSet` collects only unique values (like a Set)."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "$push vs $addToSet",
+          "content": "db.books.aggregate([{\n  $group: {\n    _id: '$authorName',\n    allTitles:    { $push: '$title' },      // array with duplicates allowed\n    uniqueGenres: { $addToSet: '$genres' }  // array with unique values only\n  }\n}])"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "$switch, $facet, $out, and Advanced $lookup",
+      "duration": "12 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "**$switch — conditional logic inside a pipeline.** Just like SQL's `CASE WHEN`, `$switch` lets you return different values based on conditions. Use it inside `$project` or `$addFields`."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "$switch — equivalent to SQL CASE WHEN",
+          "content": "db.books.aggregate([{\n  $project: {\n    title: 1,\n    price: 1,\n    tier: {\n      $switch: {\n        branches: [\n          { case: { $lt: ['$price', 12] }, then: 'budget' },\n          { case: { $lt: ['$price', 16] }, then: 'standard' }\n        ],\n        default: 'premium'   // else clause\n      }\n    }\n  }\n}])\n\n// SQL equivalent:\n// SELECT title, price,\n//   CASE WHEN price < 12 THEN 'budget'\n//        WHEN price < 16 THEN 'standard'\n//        ELSE 'premium' END AS tier\n// FROM books"
+        },
+        {
+          "type": "text",
+          "content": "**$facet — multiple pipelines on the same data at once.** `$facet` runs several sub-pipelines on the same input documents in parallel, returning all results in one response. Great for search result pages that need counts by category, price ranges, and top results all at once."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "$facet — run multiple aggregations in one query",
+          "content": "db.books.aggregate([{\n  $facet: {\n    byGenre: [\n      { $unwind: '$genres' },\n      { $group: { _id: '$genres', count: { $sum: 1 } } }\n    ],\n    priceStats: [\n      { $group: { _id: null, avg: { $avg: '$price' }, min: { $min: '$price' }, max: { $max: '$price' } } }\n    ],\n    topRated: [\n      { $sort: { rating: -1 } },\n      { $limit: 3 },\n      { $project: { title: 1, rating: 1, _id: 0 } }\n    ]\n  }\n}])\n// Returns ONE document with three arrays: byGenre, priceStats, topRated"
+        },
+        {
+          "type": "text",
+          "content": "**$out — write pipeline results to a collection.** `$out` is the last stage of a pipeline that writes results to a named collection. If the collection already exists, it is completely replaced. Use with caution."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "$out — save aggregation results as a new collection",
+          "content": "db.books.aggregate([\n  { $group: { _id: '$authorName', bookCount: { $sum: 1 }, avgRating: { $avg: '$rating' } } },\n  { $sort: { bookCount: -1 } },\n  { $out: 'author_stats' }   // saves results into the 'author_stats' collection\n])\n// WARNING: replaces author_stats entirely if it exists"
+        },
+        {
+          "type": "text",
+          "content": "**Advanced $lookup with pipeline.** The basic `$lookup` joins on exact field equality. The advanced form uses `let` + `pipeline` to write any join condition — including filtering the joined collection before returning results."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Advanced $lookup with pipeline",
+          "content": "db.authors.aggregate([{\n  $lookup: {\n    from: 'books',\n    let: { authorId: '$_id' },\n    pipeline: [\n      { $match: { $expr: { $eq: ['$authorId', '$$authorId'] } } },\n      { $match: { inStock: true } },   // additional filter on joined collection\n      { $project: { title: 1, price: 1, _id: 0 } }\n    ],\n    as: 'inStockBooks'\n  }\n}])\n// Returns each author with only their in-stock books"
+        },
+        {
+          "type": "text",
+          "content": "**MongoDB auto-optimises your pipeline.** The aggregation engine automatically moves `$match` and `$sort` stages earlier in the pipeline when it's safe to do so. It also merges consecutive `$limit` or `$skip` stages. Write pipelines for readability — the engine handles the optimisation."
+        }
+      ]
+    }
+  ]
+}

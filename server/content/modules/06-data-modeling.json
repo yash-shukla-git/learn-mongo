@@ -1,0 +1,140 @@
+{
+  "id": 6,
+  "title": "Data Modeling",
+  "description": "Design MongoDB schemas — when to embed documents, when to use references, and real-world design patterns.",
+  "icon": "🏗️",
+  "lessons": [
+    {
+      "id": 1,
+      "title": "Embed vs Reference",
+      "duration": "15 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "The biggest mental shift from SQL: MongoDB gives you a choice. You can **embed** related data inside the same document (denormalization), or **reference** it with an ID (like a foreign key). The right choice depends on how you query the data."
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "The fundamental trade-off",
+          "table": [
+            ["", "Embed (Denormalize)", "Reference (Normalize)"],
+            ["Read performance", "Fast — one query", "Slower — needs $lookup"],
+            ["Write performance", "Slower — whole doc updated", "Faster — update one collection"],
+            ["Data duplication", "Yes", "No"],
+            ["Document size", "Grows with embedded data", "Stays small"],
+            ["SQL analogy", "Denormalized table or JSON column", "Normalized tables with FK"],
+            ["Use when", "Data always read together", "Data accessed independently"]
+          ]
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Example: Embed vs Reference for author data",
+          "content": "// ── EMBEDDED (denormalized) ──────────────────────────────────\n// Good when you always want author info with the book\n{\n  _id: ObjectId(),\n  title: '1984',\n  author: {\n    name: 'George Orwell',\n    nationality: 'British',\n    born: 1903\n  }\n}\n// Pros: db.books.findOne({ title:'1984' }) gives everything\n// Cons: if Orwell's bio changes, update every book document\n\n// ── REFERENCED (normalized) ──────────────────────────────────\n// Good when author data is updated independently\n{ _id: ObjectId(), title: '1984', authorId: ObjectId('...') }\n// Separate authors collection:\n{ _id: ObjectId('...'), name: 'George Orwell', nationality: 'British' }\n// Cons: need $lookup to get author name"
+        },
+        {
+          "type": "tip",
+          "content": "**The golden rule:** Model your data for the most common query, not for theoretical purity. If you always fetch a book with its author, embed. If you often update author profiles, reference."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Relationship Patterns",
+      "duration": "15 min",
+      "sections": [
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "One-to-One: Embed in most cases",
+          "content": "// One user, one profile — embed it\n{\n  _id: ObjectId(),\n  username: 'alice',\n  profile: {           // embedded one-to-one\n    bio: 'Bookworm',\n    avatar: 'alice.jpg',\n    joinedAt: ISODate()\n  }\n}"
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "One-to-Many: Embed when the 'many' side is small and bounded",
+          "content": "// A book has many tags — always small, always read together → EMBED\n{\n  _id: ObjectId(),\n  title: '1984',\n  tags: ['surveillance', 'dystopia', 'political']  // max ~10 tags\n}\n\n// A user has many orders — could be thousands, queried independently → REFERENCE\n// orders collection:\n{ _id: ObjectId(), customerId: ObjectId('...'), totalAmount: 59.99, ... }\n// users collection:\n{ _id: ObjectId(), name: 'Alice' }  // NO orders array here — would grow unbounded"
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Many-to-Many: Reference with an array of IDs",
+          "content": "// A book can have many genres; a genre applies to many books\n// Store the array of genre strings directly (denormalized)\n{\n  _id: ObjectId(),\n  title: '1984',\n  genres: ['dystopia', 'fiction', 'classic']  // denormalized M:M\n}\n\n// Or with ObjectId references if genres have rich metadata:\n{ _id: ObjectId(), title: '1984', genreIds: [ObjectId('...'), ObjectId('...')] }\n// genres collection:\n{ _id: ObjectId('...'), name: 'dystopia', description: '...' }"
+        },
+        {
+          "type": "warning",
+          "content": "**Avoid unbounded arrays:** Never embed a list that could grow very large (orders, comments, log entries). MongoDB has a 16MB document size limit, and large embedded arrays cause performance issues. Use a separate collection + reference instead."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Schema Design Patterns",
+      "duration": "18 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "MongoDB's flexibility means the same data can be modelled many ways. These named patterns are solutions to common problems — learn them so you can recognise and apply them."
+        },
+        {
+          "type": "text",
+          "content": "**Extended Reference Pattern** — store a foreign key AND a few frequently-needed fields from the referenced document to avoid a `$lookup` on every read."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Extended Reference — cache key fields to avoid $lookup",
+          "content": "// Instead of just storing the authorId:\n{ _id: ObjectId(), title: '1984', authorId: ObjectId('...') }\n\n// Store authorId PLUS the fields you always need:\n{\n  _id: ObjectId(),\n  title: '1984',\n  authorId: ObjectId('...'),\n  authorName: 'George Orwell',   // cached field\n  authorNationality: 'British'   // cached field\n}\n// You can now display the book with its author info in ONE query.\n// Trade-off: if the author updates their name, you must update all books too."
+        },
+        {
+          "type": "text",
+          "content": "**Subset Pattern** — for large arrays (like product reviews), embed only the most recently accessed subset inside the parent document. Store the full list in a separate collection."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Subset Pattern — hot data embedded, cold data referenced",
+          "content": "// Product document: embed only the 5 most recent reviews for quick display\n{\n  _id: ObjectId(),\n  title: 'Dune',\n  recentReviews: [   // last 5 only — fast to load\n    { user: 'alice', rating: 5, text: 'Incredible!' },\n    ...\n  ]\n}\n\n// All reviews live in a separate collection:\n{ _id: ObjectId(), bookId: ObjectId('...'), user: 'bob', rating: 4, text: '...' }"
+        },
+        {
+          "type": "text",
+          "content": "**Bucket Pattern** — instead of one document per event (millions of tiny documents) or all events in one document (exceeds 16MB), group N events into one 'bucket' document."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Bucket Pattern — group sensor readings by hour",
+          "content": "// ❌ Anti-pattern: one document per reading (too many small docs)\n{ sensorId: 1, value: 23.5, timestamp: ISODate('2024-01-01T10:00:00') }\n{ sensorId: 1, value: 23.7, timestamp: ISODate('2024-01-01T10:01:00') }\n\n// ✅ Bucket: group an hour of readings into one document\n{\n  sensorId: 1,\n  hour: ISODate('2024-01-01T10:00:00'),\n  readings: [\n    { minute: 0, value: 23.5 },\n    { minute: 1, value: 23.7 },\n    ...\n  ],\n  count: 60,\n  sum: 1412.4   // pre-aggregated for fast averages\n}"
+        },
+        {
+          "type": "text",
+          "content": "**Outlier Pattern** — most documents fit a normal pattern, but a few are exceptions. Add an overflow flag to outliers and handle them separately in code."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Outlier Pattern — handle exceptions differently",
+          "content": "// Normal product: embed up to 50 reviews directly\n{ _id: ObjectId(), title: 'Dune', reviews: [...50 reviews...] }\n\n// Viral product with 100,000 reviews: flag it as an outlier\n{\n  _id: ObjectId(),\n  title: 'Best-Seller XYZ',\n  reviews: [...first 50...],  // keep a sample for quick display\n  hasOverflowReviews: true    // flag: extra reviews are in the reviews collection\n}\n// Application checks hasOverflowReviews and queries separately if needed"
+        },
+        {
+          "type": "text",
+          "content": "**Schema Versioning Pattern** — when your schema evolves, not all existing documents update instantly. Add a `schemaVersion` field so your application knows how to handle each document."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Schema Versioning — handle multiple document shapes",
+          "content": "// Old document (version 1): address is a string\n{ _id: ObjectId(), name: 'Alice', address: '123 Main St', schemaVersion: 1 }\n\n// New document (version 2): address is an embedded object\n{ _id: ObjectId(), name: 'Bob', address: { street: '456 Oak Ave', city: 'NYC' }, schemaVersion: 2 }\n\n// Application code:\nfunction getCity(user) {\n  if (user.schemaVersion === 1) return user.address.split(',')[1]?.trim();\n  return user.address.city;  // version 2 format\n}"
+        },
+        {
+          "type": "text",
+          "content": "**The golden rule of MongoDB schema design: model for your access patterns, not for theoretical correctness.** Ask 'what queries will I run?' before deciding embed vs reference. In SQL you normalise first then optimise later. In MongoDB, you design for your queries upfront."
+        },
+        {
+          "type": "text",
+          "content": "**Tree Hierarchies** (categories, org charts) have multiple patterns. The right choice depends on how you query the tree: **Adjacency list** (store just the `parentId`) is simple for parent-child lookups. **Materialized path** (store the full path string like `/root/parent/child`) makes subtree queries easy with regex. **Array of ancestors** stores all parent IDs in an array for fast ancestor lookups."
+        }
+      ]
+    }
+  ]
+}

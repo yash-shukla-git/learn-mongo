@@ -1,0 +1,23 @@
+.app-shell { display: grid; grid-template-columns: 260px 1fr; grid-template-rows: 60px 1fr; min-height: 100vh; }
+.topbar { grid-column: 1 / -1; background: var(--surface); border-bottom: 1px solid var(--surface3); display: flex; align-items: center; gap: 16px; padding: 0 24px; position: sticky; top: 0; z-index: 100; }
+.sidebar { background: var(--surface); border-right: 1px solid var(--surface3); padding: 16px 0; overflow-y: auto; }
+.main { padding: 32px; overflow-y: auto; width: 100%; }
+.topbar .logo { font-size: 1.1rem; font-weight: 700; color: var(--green); display: flex; align-items: center; gap: 8px; }
+.topbar .logo span { font-size: 0.7rem; font-family: var(--font-mono); background: var(--green-dim); color: var(--green); padding: 2px 8px; border-radius: 4px; }
+.topbar .spacer { flex: 1; }
+.topbar .streak-chip { display: flex; align-items: center; gap: 6px; background: var(--surface2); padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; color: var(--accent2); font-weight: 600; }
+.topbar .session-info { font-size: 0.8rem; color: var(--text-muted); }
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 20px; color: var(--text-dim); border-left: 3px solid transparent; transition: var(--transition); cursor: pointer; text-decoration: none; }
+.nav-item:hover { background: var(--surface2); color: var(--text); text-decoration: none; }
+.nav-item.active { border-left-color: var(--green); background: var(--green-dim); color: var(--green); }
+.nav-item .icon { font-size: 1.1rem; width: 22px; text-align: center; }
+.nav-item .label { font-size: 0.9rem; font-weight: 500; }
+.nav-section { padding: 8px 20px 4px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
+.page-header { margin-bottom: 32px; }
+.page-header h1 { font-size: 1.8rem; font-weight: 700; color: var(--text); }
+.page-header p { color: var(--text-dim); margin-top: 8px; }
+@media (max-width: 768px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .main { padding: 16px; }
+}

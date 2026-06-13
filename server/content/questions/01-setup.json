@@ -1,0 +1,213 @@
+[
+  {
+    "id": "setup-q-01", "moduleId": 1, "topic": "document-model", "difficulty": "easy", "type": "mcq",
+    "text": "In MongoDB, what is the equivalent of a PostgreSQL TABLE?",
+    "options": ["Document", "Collection", "Database", "Field"],
+    "correctAnswer": "Collection",
+    "explanation": "A PostgreSQL TABLE = MongoDB Collection. Both hold multiple records. The individual records are called 'rows' in PostgreSQL and 'documents' in MongoDB.",
+    "hint": "Think about what holds multiple 'rows' (SQL) or 'documents' (MongoDB).",
+    "sqlEquivalent": "PostgreSQL TABLE → MongoDB Collection"
+  },
+  {
+    "id": "setup-q-02", "moduleId": 1, "topic": "document-model", "difficulty": "easy", "type": "mcq",
+    "text": "What is the MongoDB equivalent of a PostgreSQL ROW?",
+    "options": ["Collection", "Index", "Document", "Schema"],
+    "correctAnswer": "Document",
+    "explanation": "A single record is a 'row' in PostgreSQL and a 'document' in MongoDB. Documents are stored as BSON (Binary JSON).",
+    "hint": "What holds the actual data for one entity?"
+  },
+  {
+    "id": "setup-q-03", "moduleId": 1, "topic": "document-model", "difficulty": "easy", "type": "mcq",
+    "text": "What format does MongoDB use to store documents internally?",
+    "options": ["JSON", "XML", "BSON", "CSV"],
+    "correctAnswer": "BSON",
+    "explanation": "MongoDB stores data as BSON (Binary JSON), which is a binary-encoded extension of JSON. BSON supports additional types like ObjectId, Date, and Binary that plain JSON doesn't have.",
+    "hint": "It's like JSON but binary-encoded with extra types."
+  },
+  {
+    "id": "setup-q-04", "moduleId": 1, "topic": "id-field", "difficulty": "easy", "type": "mcq",
+    "text": "What happens if you insert a document without specifying an _id field?",
+    "options": ["The insert fails with an error", "MongoDB automatically creates an ObjectId for _id", "The document gets _id = null", "The document gets _id = 0"],
+    "correctAnswer": "MongoDB automatically creates an ObjectId for _id",
+    "explanation": "MongoDB automatically generates a 12-byte ObjectId for the _id field if you don't provide one. This is analogous to a SERIAL/AUTO_INCREMENT primary key in SQL.",
+    "hint": "Think of _id like a PRIMARY KEY with auto-increment."
+  },
+  {
+    "id": "setup-q-05", "moduleId": 1, "topic": "document-model", "difficulty": "easy", "type": "mcq",
+    "text": "Which of these is a valid advantage of storing arrays inside MongoDB documents?",
+    "options": [
+      "Arrays take up less disk space than SQL tables",
+      "No need for a separate junction table for one-to-many relationships",
+      "Arrays are automatically indexed",
+      "MongoDB enforces array element types"
+    ],
+    "correctAnswer": "No need for a separate junction table for one-to-many relationships",
+    "explanation": "In SQL, storing multiple genres for a book requires a junction table (book_genres) and a JOIN. In MongoDB, you simply store genres as an array inside the book document.",
+    "hint": "Think about what you need in SQL when one book has many genres."
+  },
+  {
+    "id": "setup-q-06", "moduleId": 1, "topic": "document-model", "difficulty": "easy", "type": "mcq",
+    "text": "In mongosh, what command lists all databases — similar to \\l in psql?",
+    "options": ["list databases", "show dbs", "show databases", "get dbs"],
+    "correctAnswer": "show dbs",
+    "explanation": "`show dbs` lists all databases in mongosh. The equivalent in psql is `\\l`. You can also use `show databases` which is an alias.",
+    "hint": "It starts with 'show'."
+  },
+  {
+    "id": "setup-q-07", "moduleId": 1, "topic": "document-model", "difficulty": "easy", "type": "mcq",
+    "text": "In MongoDB, is a schema (column definitions) required to create a collection?",
+    "options": [
+      "Yes, like SQL CREATE TABLE",
+      "No, collections are schema-optional by default",
+      "Yes, but only for the _id field",
+      "No schema is ever possible in MongoDB"
+    ],
+    "correctAnswer": "No, collections are schema-optional by default",
+    "explanation": "MongoDB is schema-optional by default — you can insert documents of any shape into a collection. Schema enforcement can be added optionally via Mongoose ODM or MongoDB's JSON Schema validation.",
+    "hint": "Think 'flexible' vs 'rigid'."
+  },
+  {
+    "id": "setup-q-08", "moduleId": 1, "topic": "document-model", "difficulty": "easy", "type": "mcq",
+    "text": "What type does MongoDB use for the _id field by default?",
+    "options": ["UUID", "Integer", "ObjectId", "String"],
+    "correctAnswer": "ObjectId",
+    "explanation": "MongoDB uses ObjectId — a 12-byte BSON type — as the default _id. It encodes a timestamp, machine ID, process ID, and a random counter, making it globally unique without coordination.",
+    "hint": "It's a special 24-character hex string."
+  },
+  {
+    "id": "setup-q-09", "moduleId": 1, "topic": "document-model", "difficulty": "easy", "type": "mcq",
+    "text": "Which PostgreSQL concept maps most closely to MongoDB's embedded document?",
+    "options": ["Foreign key", "JOIN result", "JSONB column", "View"],
+    "correctAnswer": "JSONB column",
+    "explanation": "PostgreSQL's JSONB column can store nested JSON objects, similar to embedded documents in MongoDB. However, MongoDB is optimized for this use case natively, while JSONB is an add-on in PostgreSQL.",
+    "hint": "PostgreSQL has a column type that stores JSON..."
+  },
+  {
+    "id": "setup-q-10", "moduleId": 1, "topic": "document-model", "difficulty": "easy", "type": "mcq",
+    "text": "What is the maximum size of a single MongoDB document?",
+    "options": ["1 MB", "16 MB", "100 MB", "Unlimited"],
+    "correctAnswer": "16 MB",
+    "explanation": "A single MongoDB document has a 16MB size limit. This is usually more than enough, but it's why you should avoid unbounded arrays (like embedding all orders into a user document). PostgreSQL has no practical per-row size limit.",
+    "hint": "It's a power of 2 in the megabytes range."
+  },
+  {
+    "id": "setup-q-11", "moduleId": 1, "topic": "mongosh", "difficulty": "medium", "type": "fill-in-blank",
+    "text": "Complete the mongosh command to switch to the 'bookstore' database (like \\c bookstore in psql):",
+    "codeTemplate": "______ bookstore",
+    "correctAnswer": "use",
+    "explanation": "`use bookstore` switches the active database. If it doesn't exist yet, MongoDB creates it lazily when you first insert a document.",
+    "hint": "It's a two-letter word."
+  },
+  {
+    "id": "setup-q-12", "moduleId": 1, "topic": "mongosh", "difficulty": "medium", "type": "fill-in-blank",
+    "text": "What mongosh command lists all collections in the current database? (Like \\dt in psql)",
+    "codeTemplate": "show ______",
+    "correctAnswer": "collections",
+    "explanation": "`show collections` lists all collections. In psql you use `\\dt`. Both give you the list of 'tables'/collections in the current database.",
+    "hint": "Plural of 'collection'."
+  },
+  {
+    "id": "setup-q-13", "moduleId": 1, "topic": "document-model", "difficulty": "medium", "type": "mcq",
+    "text": "A book document has a 'genres' field that is an array: ['fiction', 'classic']. How would you query all books where 'classic' is one of the genres?",
+    "options": [
+      "db.books.find({ genres: { $contains: 'classic' } })",
+      "db.books.find({ genres: 'classic' })",
+      "db.books.find({ genres: { $eq: ['classic'] } })",
+      "db.books.find({ 'genres[]': 'classic' })"
+    ],
+    "correctAnswer": "db.books.find({ genres: 'classic' })",
+    "explanation": "When you filter `{ genres: 'classic' }` and genres is an array, MongoDB checks if 'classic' is ANY element of that array. This is one of the nicest features of MongoDB — no join needed.",
+    "hint": "MongoDB array queries are surprisingly simple."
+  },
+  {
+    "id": "setup-q-14", "moduleId": 1, "topic": "id-field", "difficulty": "medium", "type": "mcq",
+    "text": "You want to use a book's ISBN as its _id instead of an auto-generated ObjectId. How do you do this?",
+    "options": [
+      "It's not possible — _id must be an ObjectId",
+      "Set primaryKey: 'isbn' in the collection options",
+      "Provide the _id field explicitly when inserting: { _id: '978-0451524935', ... }",
+      "Create a unique index on isbn, MongoDB will use it as _id"
+    ],
+    "correctAnswer": "Provide the _id field explicitly when inserting: { _id: '978-0451524935', ... }",
+    "explanation": "You can set _id to any unique value (string, number, custom object) by simply providing it in the document. MongoDB will use your value instead of generating an ObjectId.",
+    "hint": "Just set it in the document like any other field."
+  },
+  {
+    "id": "setup-q-15", "moduleId": 1, "topic": "document-model", "difficulty": "medium", "type": "sql-to-mongo",
+    "text": "You have this PostgreSQL table schema:\n\nCREATE TABLE books (\n  id SERIAL PRIMARY KEY,\n  title TEXT NOT NULL,\n  author_id INT REFERENCES authors(id),\n  price DECIMAL(6,2),\n  published_year INT\n);\n\nWhat would be the most idiomatic MongoDB document shape for a book — assuming you ALWAYS need author name when you fetch a book?",
+    "options": [
+      "{ _id: ObjectId(), title: 'string', authorId: ObjectId(), price: 0, publishedYear: 0 }",
+      "{ _id: ObjectId(), title: 'string', author: { name: 'string', id: ObjectId() }, price: 0, publishedYear: 0 }",
+      "{ _id: ObjectId(), title: 'string', author_name: 'string', author_id: ObjectId(), price: 0, publishedYear: 0 }",
+      "Same as PostgreSQL schema — always keep it normalized"
+    ],
+    "correctAnswer": "{ _id: ObjectId(), title: 'string', author: { name: 'string', id: ObjectId() }, price: 0, publishedYear: 0 }",
+    "explanation": "Since you always need the author name with the book, embed the author's key fields directly. This avoids a $lookup on every query. You can keep the id reference for cases where you need the full author document.",
+    "hint": "What data do you always read together?"
+  },
+  {
+    "id": "setup-q-16", "moduleId": 1, "topic": "document-model", "difficulty": "medium", "type": "mcq",
+    "text": "Field names in MongoDB are case-sensitive. What does this mean for a document with { title: '1984' }?",
+    "options": [
+      "Querying { Title: '1984' } will find the document",
+      "Querying { Title: '1984' } will NOT find the document",
+      "MongoDB automatically normalizes field names to lowercase",
+      "Case sensitivity only applies to string values, not field names"
+    ],
+    "correctAnswer": "Querying { Title: '1984' } will NOT find the document",
+    "explanation": "MongoDB field names are case-sensitive. `title` and `Title` are two completely different fields. This is different from PostgreSQL where column names are case-insensitive.",
+    "hint": "Unlike SQL column names, MongoDB fields ARE case-sensitive."
+  },
+  {
+    "id": "setup-q-17", "moduleId": 1, "topic": "document-model", "difficulty": "medium", "type": "mcq",
+    "text": "When is a MongoDB database or collection actually created?",
+    "options": [
+      "When you run the CREATE DATABASE command",
+      "When you run the CREATE COLLECTION command",
+      "Lazily — when you first insert a document",
+      "When you declare it in the schema file"
+    ],
+    "correctAnswer": "Lazily — when you first insert a document",
+    "explanation": "MongoDB creates databases and collections lazily — they spring into existence when you first insert data. Running `use newdb` and `db.newcollection.find()` won't create anything. The first `insertOne()` creates both.",
+    "hint": "MongoDB is 'lazy' — it waits until it's actually needed."
+  },
+  {
+    "id": "setup-q-18", "moduleId": 1, "topic": "document-model", "difficulty": "hard", "type": "mcq",
+    "text": "An ObjectId encodes which of the following pieces of information?",
+    "options": [
+      "Random bytes only — purely random for uniqueness",
+      "Timestamp + machine identifier + process ID + random counter",
+      "Timestamp + UUID v4",
+      "Hash of the document contents"
+    ],
+    "correctAnswer": "Timestamp + machine identifier + process ID + random counter",
+    "explanation": "An ObjectId is 12 bytes: 4-byte timestamp (seconds since epoch), 5-byte random value (machine+process specific), and 3-byte incrementing counter. This design guarantees global uniqueness across distributed systems without coordination.",
+    "hint": "It was designed for distributed systems where multiple servers insert at the same time."
+  },
+  {
+    "id": "setup-q-19", "moduleId": 1, "topic": "document-model", "difficulty": "hard", "type": "mcq",
+    "text": "MongoDB is described as 'BASE' rather than 'ACID' in distributed deployments. What does BASE stand for?",
+    "options": [
+      "Binary, Atomic, Structured, Efficient",
+      "Basically Available, Soft state, Eventual consistency",
+      "Binary, Available, Scalable, Elastic",
+      "Basically Atomic, Serializable, Eventually consistent"
+    ],
+    "correctAnswer": "Basically Available, Soft state, Eventual consistency",
+    "explanation": "BASE is the distributed systems trade-off against ACID: Basically Available (system stays responsive), Soft state (state may change over time), Eventual consistency (all nodes will eventually agree). MongoDB with replica sets and majority write concern moves closer to ACID guarantees.",
+    "hint": "It's the opposite philosophy from ACID (Atomicity, Consistency, Isolation, Durability)."
+  },
+  {
+    "id": "setup-q-20", "moduleId": 1, "topic": "document-model", "difficulty": "hard", "type": "mcq",
+    "text": "In a replica set, a primary node goes down. What happens next?",
+    "options": [
+      "All writes fail until the primary restarts",
+      "The replica set holds an automatic election and promotes a secondary to primary",
+      "One of the secondaries becomes primary immediately without an election",
+      "A new primary must be appointed manually by the DBA"
+    ],
+    "correctAnswer": "The replica set holds an automatic election and promotes a secondary to primary",
+    "explanation": "When a primary is unavailable, the remaining replica set members hold an election (using Raft-based consensus). The secondary with the most up-to-date oplog and highest priority wins. Typically takes 10-30 seconds.",
+    "hint": "Replica sets are designed for automatic failover."
+  }
+]

@@ -1,0 +1,128 @@
+{
+  "id": 4,
+  "title": "Indexes & Performance",
+  "description": "Create indexes, read query plans with explain(), and understand when indexes help vs hurt.",
+  "icon": "⚡",
+  "lessons": [
+    {
+      "id": 1,
+      "title": "Why Indexes Matter",
+      "duration": "8 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "Without an index, MongoDB performs a **collection scan** — reading every document to find matches. This is exactly like a PostgreSQL sequential scan (`Seq Scan`). As your collection grows, this gets painfully slow."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "See the problem — no index",
+          "content": "// Run this query and look at 'totalDocsExamined'\ndb.books.find({ publishedYear: 1949 }).explain('executionStats')\n// totalDocsExamined: 50 (all docs scanned to find 1 result!)\n// stage: 'COLLSCAN'"
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "EXPLAIN ANALYZE vs explain()",
+          "table": [
+            ["PostgreSQL EXPLAIN ANALYZE", "MongoDB explain('executionStats')"],
+            ["Seq Scan (cost=...)", "stage: 'COLLSCAN'"],
+            ["Index Scan using idx_name", "stage: 'IXSCAN', indexName: 'idx_name'"],
+            ["rows=1 (estimated)", "nReturned: 1"],
+            ["actual rows=1", "totalDocsExamined: 50"]
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Creating Indexes",
+      "duration": "12 min",
+      "sections": [
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Single-field and compound indexes",
+          "content": "// Single field index (1 = ascending, -1 = descending)\ndb.books.createIndex({ publishedYear: 1 })\n\n// Now the same query is fast!\ndb.books.find({ publishedYear: 1949 }).explain('executionStats')\n// stage: 'IXSCAN', totalDocsExamined: 1\n\n// Compound index — covers queries on both fields\ndb.books.createIndex({ authorId: 1, publishedYear: -1 })\n// Useful for: find by author, sorted by year descending\n\n// Unique index (like UNIQUE constraint in SQL)\ndb.authors.createIndex({ email: 1 }, { unique: true })\n\n// Sparse index — only indexes documents where the field exists\ndb.books.createIndex({ promoCode: 1 }, { sparse: true })\n\n// List all indexes on a collection\ndb.books.getIndexes()\n\n// Drop an index\ndb.books.dropIndex({ publishedYear: 1 })"
+        },
+        {
+          "type": "tip",
+          "content": "**ESR Rule for compound indexes:** Order fields as **Equality → Sort → Range**. Equality filters first, then sort fields, then range filters. This matches how MongoDB uses the index internally."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Text indexes — full text search",
+          "content": "// Create a text index\ndb.books.createIndex({ title: 'text', tags: 'text' })\n\n// Search using $text\ndb.books.find({ $text: { $search: 'dystopia surveillance' } })\n\n// Sort by relevance score\ndb.books.find(\n  { $text: { $search: 'dystopia' } },\n  { score: { $meta: 'textScore' } }\n).sort({ score: { $meta: 'textScore' } })"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Reading Query Plans",
+      "duration": "10 min",
+      "sections": [
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Understanding explain() output",
+          "content": "db.books.find({ genres: 'fiction', price: { $lt: 15 } }).explain('executionStats')\n\n// Key fields to look at:\n// executionStats.totalDocsExamined  → rows read (want this LOW)\n// executionStats.nReturned          → rows returned\n// executionStats.executionTimeMillis → query time\n// queryPlanner.winningPlan.stage    → COLLSCAN (bad) or IXSCAN (good)\n\n// Ideal: totalDocsExamined ≈ nReturned\n// Terrible: totalDocsExamined = 50, nReturned = 1 → missing index"
+        },
+        {
+          "type": "warning",
+          "content": "**Index overhead:** Every index speeds up reads but slows down writes (insert/update/delete must update all indexes). Don't index every field — focus on fields used in frequent, slow queries. Same trade-off exists in PostgreSQL."
+        },
+        {
+          "type": "text",
+          "content": "**totalKeysExamined vs totalDocsExamined.** In explain() output, `totalKeysExamined` is how many index entries were scanned. `totalDocsExamined` is how many full documents were loaded from disk. When you use an index (IXSCAN), MongoDB first scans index keys, then fetches only the matching documents. A covered query (see below) has `totalDocsExamined: 0` because all needed data comes from the index itself."
+        },
+        {
+          "type": "text",
+          "content": "**Why the query planner might ignore your index.** MongoDB's query planner compares candidate plans and picks the cheapest one. If a field has very low cardinality (e.g. `inStock` is `true` for 80% of documents), the planner may decide a full collection scan is faster than using the index — because following index pointers to 80% of all documents has more overhead than just reading all documents sequentially."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Covered Queries and Partial Indexes",
+      "duration": "10 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "**A covered query never reads documents — it reads only the index.** This is the fastest possible query. A query is covered when every field it needs (both in the filter and in the projection) is present in the index, and `_id` is excluded from the projection."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Covered query example",
+          "content": "// Create an index that includes both the filter field and the projected fields\ndb.books.createIndex({ authorId: 1, title: 1 })\n\n// This query is COVERED — all data comes from the index, zero document reads\ndb.books.find(\n  { authorId: ObjectId('...') },         // filter: authorId is in the index\n  { title: 1, _id: 0 }                   // project: title is in the index, exclude _id\n).explain('executionStats')\n// totalDocsExamined: 0  ← never touches the actual documents!"
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "Covered query",
+          "table": [
+            ["PostgreSQL", "MongoDB"],
+            ["Index-only scan (when all columns are in the index)", "Covered query (totalDocsExamined: 0)"],
+            ["Much faster — avoids heap fetch", "Much faster — avoids document fetch"]
+          ]
+        },
+        {
+          "type": "text",
+          "content": "**Partial indexes** index only the documents that match a filter expression. This creates a smaller, more targeted index compared to indexing the entire collection."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Partial index — only index active orders",
+          "content": "// Only index orders with status 'active' — ignore delivered/cancelled\ndb.orders.createIndex(\n  { orderedAt: -1 },\n  { partialFilterExpression: { status: 'active' } }\n)\n\n// This index is used for queries that include status: 'active'\ndb.orders.find({ status: 'active', orderedAt: { $gt: ISODate('...') } })\n// Much smaller index than indexing all orders"
+        },
+        {
+          "type": "text",
+          "content": "**createIndex() is idempotent.** Calling it multiple times with the same definition is safe — MongoDB detects the duplicate and does nothing. You will not create two identical indexes."
+        },
+        {
+          "type": "text",
+          "content": "**Index intersection.** MongoDB can combine two separate single-field indexes to satisfy a single query. For example, a query on both `authorId` and `price` could use an index on `authorId` AND an index on `price` together. However, a well-designed compound index almost always outperforms index intersection — so prefer compound indexes over relying on this."
+        }
+      ]
+    }
+  ]
+}

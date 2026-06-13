@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz — MongoDB Learning Platform</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/quiz.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="logo"><a href="index.html" style="color:inherit;text-decoration:none">🍃 <span>MongoDB</span></a></div>
+    <div class="spacer"></div>
+    <div class="streak-chip">🔥 <span id="streak-val">0</span></div>
+  </header>
+  <nav class="sidebar">
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+    <a class="nav-item" href="dashboard.html"><span class="icon">📊</span><span class="label">Dashboard</span></a>
+    <a class="nav-item" href="playground.html"><span class="icon">⚡</span><span class="label">Playground</span></a>
+  </nav>
+  <main class="main">
+    <div class="quiz-wrapper" id="quiz-wrapper">
+      <div class="card" style="text-align:center;padding:40px;color:var(--text-muted)">Loading quiz…</div>
+    </div>
+  </main>
+</div>
+<script src="js/session.js"></script>
+<script src="js/api.js"></script>
+<script src="js/components/toast.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const moduleId = parseInt(params.get('m') || '2');
+
+const state = {
+  question: null,
+  hintAvailable: false,
+  currentDifficulty: 'easy',
+  streakCount: 0,
+  answered: false,
+  startTime: null,
+  moduleName: '',
+  completionPercent: 0,
+};
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function difficultyBadge(d) {
+  return `<span class="difficulty-pill ${d}">${d}</span>`;
+}
+
+function typeBadge(t) {
+  const labels = { mcq: 'Multiple Choice', 'fill-in-blank': 'Fill the Blank', 'live-query': 'Live Query', 'fix-bug': 'Fix the Bug', 'sql-to-mongo': 'SQL → MongoDB' };
+  const cls = { mcq: 'badge-mcq', 'fill-in-blank': 'badge-mcq', 'live-query': 'badge-live', 'fix-bug': 'badge-fix', 'sql-to-mongo': 'badge-sql' };
+  return `<span class="badge ${cls[t] || 'badge-mcq'}">${labels[t] || t}</span>`;
+}
+
+function renderQuestion(q, hint) {
+  let inputHtml = '';
+  if (q.type === 'mcq' || q.type === 'sql-to-mongo') {
+    inputHtml = `<div class="mcq-options">
+      ${(q.options || []).map((opt, i) => `
+        <div class="mcq-option" data-idx="${i}" data-val="${escHtml(opt)}" onclick="selectMCQ(this)">
+          <span class="option-letter">${String.fromCharCode(65+i)}</span>
+          <span>${escHtml(opt)}</span>
+        </div>`).join('')}
+    </div>`;
+  } else if (q.type === 'fill-in-blank' || q.type === 'fix-bug') {
+    const template = q.codeTemplate || '';
+    const parts = template.split('______');
+    let html = '<div class="fill-blank-row">';
+    parts.forEach((part, i) => {
+      html += `<span class="code-fragment">${escHtml(part)}</span>`;
+      if (i < parts.length - 1) {
+        html += `<input class="blank-input" id="blank-${i}" type="text" placeholder="?" autocomplete="off" autocorrect="off" spellcheck="false">`;
+      }
+    });
+    html += '</div>';
+    inputHtml = html;
+  } else if (q.type === 'live-query') {
+    inputHtml = `<div class="live-query-area">
+      <textarea id="live-query-input" placeholder="db.books.find({ ... })" spellcheck="false"></textarea>
+    </div>`;
+  }
+
+  const hintBox = hint ? `<div class="hint-box">${escHtml(hint)}</div>` : '';
+  const sqlHint = q.sqlEquivalent ? `<div class="sql-hint">${escHtml(q.sqlEquivalent)}</div>` : '';
+
+  return `
+    <div class="quiz-header">
+      <span class="module-name">Module ${moduleId}: ${state.moduleName}</span>
+      ${difficultyBadge(state.currentDifficulty)}
+      <span class="spacer"></span>
+      <span class="streak-display">🔥 ${state.streakCount}</span>
+    </div>
+    <div class="quiz-progress">
+      <div class="quiz-progress-text">
+        <span>Module Progress</span>
+        <span>${state.completionPercent}% complete</span>
+      </div>
+      <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill" style="width:${state.completionPercent}%"></div></div>
+    </div>
+    <div class="question-card">
+      <div class="question-type-row">
+        ${typeBadge(q.type)}
+        ${difficultyBadge(q.difficulty)}
+        <span class="badge" style="background:var(--surface2);color:var(--text-muted)">${q.topic}</span>
+      </div>
+      <div class="question-text">${escHtml(q.text)}</div>
+      ${sqlHint}
+      ${inputHtml}
+      ${hintBox}
+    </div>
+    <div id="feedback-area"></div>
+    <div class="quiz-actions">
+      <button class="btn btn-primary" id="submit-btn" onclick="submitAnswer()">Submit Answer</button>
+      <button class="btn btn-secondary" id="skip-btn" onclick="loadNext()">Skip →</button>
+    </div>
+  `;
+}
+
+function getAnswer() {
+  const q = state.question;
+  if (q.type === 'mcq' || q.type === 'sql-to-mongo') {
+    const sel = document.querySelector('.mcq-option.selected');
+    return sel ? sel.dataset.val : null;
+  }
+  if (q.type === 'fill-in-blank' || q.type === 'fix-bug') {
+    const inputs = document.querySelectorAll('.blank-input');
+    return [...inputs].map(i => i.value.trim()).join('|');
+  }
+  if (q.type === 'live-query') {
+    return document.getElementById('live-query-input')?.value || '';
+  }
+  return null;
+}
+
+function selectMCQ(el) {
+  if (state.answered) return;
+  document.querySelectorAll('.mcq-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function submitAnswer() {
+  if (state.answered) return loadNext();
+  const answer = getAnswer();
+  if (!answer || answer === '|'.repeat((answer.match(/\|/g)||[]).length)) {
+    showToast('Please enter an answer first', 'error');
+    return;
+  }
+
+  const timeTaken = Date.now() - state.startTime;
+  state.answered = true;
+
+  document.getElementById('submit-btn').disabled = true;
+  document.getElementById('skip-btn').textContent = 'Next Question →';
+
+  try {
+    const result = await API.post('/api/quiz/submit', {
+      questionId: state.question.id,
+      moduleId,
+      userAnswer: answer,
+      timeTakenMs: timeTaken,
+      hintUsed: false,
+    });
+
+    state.streakCount = result.streakCount;
+    state.completionPercent = result.completionPercent;
+    document.getElementById('streak-val').textContent = result.streakCount;
+    document.getElementById('progress-fill').style.width = result.completionPercent + '%';
+
+    // Highlight MCQ
+    if (state.question.type === 'mcq' || state.question.type === 'sql-to-mongo') {
+      document.querySelectorAll('.mcq-option').forEach(el => {
+        if (el.dataset.val === answer && !result.isCorrect) el.classList.add('wrong');
+        if (el.dataset.val === result.correctAnswer) el.classList.add('reveal-correct');
+        if (el.dataset.val === answer && result.isCorrect) el.classList.add('correct');
+      });
+    }
+    if (state.question.type === 'fill-in-blank' || state.question.type === 'fix-bug') {
+      const correct = String(result.correctAnswer).split('|');
+      document.querySelectorAll('.blank-input').forEach((inp, i) => {
+        inp.disabled = true;
+        inp.classList.add((inp.value.trim().toLowerCase() === (correct[i]||'').trim().toLowerCase()) ? 'correct' : 'wrong');
+      });
+    }
+
+    // Feedback
+    const feedbackEl = document.getElementById('feedback-area');
+    feedbackEl.innerHTML = `
+      <div class="feedback-panel ${result.isCorrect ? 'correct' : 'wrong'}">
+        <div class="feedback-header ${result.isCorrect ? 'correct' : 'wrong'}">
+          ${result.isCorrect ? '✅ Correct!' : '❌ Not quite'}
+        </div>
+        <div class="feedback-explanation">${escHtml(result.explanation || '')}</div>
+        ${!result.isCorrect ? `<div class="correct-answer-reveal"><strong>Correct answer:</strong> <code>${escHtml(result.correctAnswer || '')}</code></div>` : ''}
+        ${result.sqlEquivalent ? `<div class="correct-answer-reveal"><strong>SQL equivalent:</strong> <code>${escHtml(result.sqlEquivalent)}</code></div>` : ''}
+        ${result.encouragement ? `<div class="encouragement">${escHtml(result.encouragement)}</div>` : ''}
+        ${result.hint ? `<div class="hint-box">${escHtml(result.hint)}</div>` : ''}
+        ${result.isCorrect ? `<div style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">+${result.xpEarned} XP earned</div>` : ''}
+      </div>
+    `;
+
+    document.getElementById('submit-btn').textContent = 'Next Question →';
+    document.getElementById('submit-btn').disabled = false;
+    document.getElementById('submit-btn').onclick = loadNext;
+    document.getElementById('skip-btn').style.display = 'none';
+
+  } catch (e) {
+    showToast('Error submitting: ' + e.message, 'error');
+    state.answered = false;
+    document.getElementById('submit-btn').disabled = false;
+  }
+}
+
+async function loadNext() {
+  const wrapper = document.getElementById('quiz-wrapper');
+  wrapper.innerHTML = '<div class="card" style="text-align:center;padding:40px;color:var(--text-muted)">Loading next question…</div>';
+  state.answered = false;
+  state.startTime = Date.now();
+
+  try {
+    const data = await API.get(`/api/quiz/next?moduleId=${moduleId}`);
+    if (data.done) {
+      wrapper.innerHTML = `
+        <div class="done-card card">
+          <div class="big-icon">🎉</div>
+          <h2>Module Complete!</h2>
+          <p>You've answered all questions in this module. Head to the dashboard to see your progress.</p>
+          <div style="margin-top:24px;display:flex;gap:12px;justify-content:center">
+            <a href="dashboard.html" class="btn btn-primary">View Dashboard</a>
+            <a href="index.html" class="btn btn-secondary">Choose Next Module</a>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    state.question = data.question;
+    state.hintAvailable = data.hintAvailable;
+    state.currentDifficulty = data.currentDifficulty;
+    state.streakCount = data.streakCount;
+
+    wrapper.innerHTML = renderQuestion(data.question, null);
+    document.getElementById('streak-val').textContent = state.streakCount;
+  } catch (e) {
+    wrapper.innerHTML = `<div class="card"><p style="color:var(--red)">${e.message}</p><br><button class="btn btn-primary" onclick="loadNext()">Retry</button></div>`;
+  }
+}
+
+(async () => {
+  await Session.ensureSession();
+  try {
+    const mod = await API.get(`/api/modules/${moduleId}`);
+    state.moduleName = mod.title;
+    state.completionPercent = mod.completionPercent;
+    await loadNext();
+  } catch(e) {
+    document.getElementById('quiz-wrapper').innerHTML = `<div class="card"><p style="color:var(--red)">Error: ${e.message}</p></div>`;
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playground — MongoDB Learning Platform</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/playground.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="logo"><a href="index.html" style="color:inherit;text-decoration:none">🍃 <span>MongoDB</span></a></div>
+    <div class="spacer"></div>
+    <button class="btn btn-secondary btn-sm" onclick="resetPlayground()" id="reset-btn">🔄 Reset Data</button>
+  </header>
+  <nav class="sidebar">
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+    <a class="nav-item" href="dashboard.html"><span class="icon">📊</span><span class="label">Dashboard</span></a>
+    <a class="nav-item active" href="playground.html"><span class="icon">⚡</span><span class="label">Playground</span></a>
+    <div class="nav-section">Quick Queries</div>
+    <div id="quick-queries"></div>
+  </nav>
+  <main class="main" style="padding:16px;max-width:100%">
+    <div class="playground-layout">
+      <div class="editor-pane">
+        <div class="pane-header">
+          <span>⌨️ Query Editor</span>
+          <div class="spacer"></div>
+          <div class="collection-tabs" id="collection-tabs">
+            <div class="collection-tab active" onclick="setCollection('books')">books</div>
+            <div class="collection-tab" onclick="setCollection('authors')">authors</div>
+            <div class="collection-tab" onclick="setCollection('orders')">orders</div>
+          </div>
+        </div>
+        <div class="editor-box">
+          <div class="editor-toolbar">
+            <button class="btn btn-primary btn-sm" onclick="runQuery()">▶ Run</button>
+            <button class="btn btn-secondary btn-sm" onclick="clearEditor()">Clear</button>
+            <div class="shortcuts-row">
+              <span><span class="shortcut">Ctrl+Enter</span> Run</span>
+            </div>
+          </div>
+          <textarea class="editor-textarea" id="editor" placeholder="// Write your MongoDB query here
+// Examples:
+// db.books.find({ inStock: true }).sort({ rating: -1 }).limit(5)
+// db.books.countDocuments({ genres: 'fiction' })
+// db.books.aggregate([{ $group: { _id: '$authorName', count: { $sum: 1 } } }])" spellcheck="false"></textarea>
+        </div>
+        <div class="shortcuts-row" style="margin-top:8px">
+          <span>Use <strong>db.books</strong>, <strong>db.authors</strong>, <strong>db.orders</strong></span>
+        </div>
+      </div>
+      <div class="result-pane">
+        <div class="pane-header">
+          <span>📄 Results</span>
+          <div class="spacer"></div>
+          <span id="result-meta-inline" style="font-size:0.78rem;color:var(--text-muted)"></span>
+        </div>
+        <div class="result-box empty" id="result-box">
+          <span>Run a query to see results here</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="js/session.js"></script>
+<script src="js/api.js"></script>
+<script src="js/components/toast.js"></script>
+<script>
+let currentCollection = 'books';
+
+const quickQueries = [
+  { label: 'Find all books', q: 'db.books.find({}).limit(10)' },
+  { label: 'In-stock books', q: "db.books.find({ inStock: true }, { title: 1, price: 1, _id: 0 }).sort({ price: 1 })" },
+  { label: 'Books after 2000', q: 'db.books.find({ publishedYear: { $gt: 2000 } }).sort({ publishedYear: -1 })' },
+  { label: 'Dystopia books', q: "db.books.find({ genres: 'dystopia' }, { title: 1, authorName: 1, rating: 1, _id: 0 })" },
+  { label: 'Count by author', q: "db.books.aggregate([{ $group: { _id: '$authorName', books: { $sum: 1 } } }, { $sort: { books: -1 } }])" },
+  { label: 'Avg price/genre', q: "db.books.aggregate([{ $unwind: '$genres' }, { $group: { _id: '$genres', avgPrice: { $avg: '$price' } } }, { $sort: { avgPrice: -1 } }])" },
+  { label: 'Recent orders', q: "db.orders.find({ status: 'delivered' }).sort({ orderedAt: -1 }).limit(5)" },
+  { label: 'Explain a query', q: "db.books.find({ publishedYear: 1949 }).explain('executionStats')" },
+];
+
+function setCollection(col) {
+  currentCollection = col;
+  document.querySelectorAll('.collection-tab').forEach(t => t.classList.toggle('active', t.textContent === col));
+  const editor = document.getElementById('editor');
+  if (!editor.value.trim()) {
+    editor.value = `db.${col}.find({}).limit(10)`;
+  }
+}
+
+function clearEditor() {
+  document.getElementById('editor').value = '';
+  document.getElementById('result-box').innerHTML = '<span>Run a query to see results here</span>';
+  document.getElementById('result-box').className = 'result-box empty';
+  document.getElementById('result-meta-inline').textContent = '';
+}
+
+function formatValue(val) {
+  if (val === null) return `<span style="color:var(--text-muted)">null</span>`;
+  if (typeof val === 'boolean') return `<span class="bool">${val}</span>`;
+  if (typeof val === 'number') return `<span class="number">${val}</span>`;
+  if (typeof val === 'string') {
+    if (val.match(/^[0-9a-f]{24}$/)) return `<span class="oid">ObjectId("${val}")</span>`;
+    return `<span class="string">"${escHtml(val)}"</span>`;
+  }
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    if (val.$date) return `<span style="color:var(--accent)">ISODate("${new Date(val.$date).toISOString()}")</span>`;
+    return `<span style="color:var(--text)">{…}</span>`;
+  }
+  return `<span>${escHtml(JSON.stringify(val))}</span>`;
+}
+
+function formatDoc(doc) {
+  const entries = Object.entries(doc).map(([k, v]) => {
+    const isObj = typeof v === 'object' && v !== null && !Array.isArray(v) && !v.$date;
+    const isArr = Array.isArray(v);
+    let formatted;
+    if (isArr) {
+      formatted = `[${v.slice(0, 5).map(i => formatValue(i)).join(', ')}${v.length > 5 ? ` … +${v.length-5}` : ''}]`;
+    } else if (isObj) {
+      formatted = `{ ${Object.entries(v).slice(0, 3).map(([kk, vv]) => `<span class="key">"${escHtml(kk)}"</span>: ${formatValue(vv)}`).join(', ')} }`;
+    } else {
+      formatted = formatValue(v);
+    }
+    return `  <span class="key">"${escHtml(k)}"</span>: ${formatted}`;
+  });
+  return `{\n${entries.join(',\n')}\n}`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function runQuery() {
+  const query = document.getElementById('editor').value.trim();
+  if (!query) return showToast('Write a query first', 'error');
+
+  const resultBox = document.getElementById('result-box');
+  resultBox.className = 'result-box';
+  resultBox.innerHTML = '<div style="color:var(--text-muted);padding:20px">Running…</div>';
+  document.getElementById('result-meta-inline').textContent = '';
+
+  try {
+    const data = await API.post('/api/playground/execute', { query });
+
+    if (data.error) {
+      resultBox.innerHTML = `<div class="error-box">${escHtml(data.error)}</div>`;
+      return;
+    }
+
+    const results = data.results || [];
+    if (!results.length) {
+      resultBox.innerHTML = '<div style="color:var(--text-muted);padding:20px">No results returned</div>';
+      document.getElementById('result-meta-inline').textContent = '0 documents';
+      return;
+    }
+
+    document.getElementById('result-meta-inline').textContent =
+      `${results.length} doc${results.length !== 1 ? 's' : ''} · ${data.executionStats?.executionTimeMs ?? '?'}ms`;
+
+    resultBox.innerHTML = results.map(doc => `<div class="result-doc">${formatDoc(doc)}</div>`).join('');
+  } catch (e) {
+    resultBox.innerHTML = `<div class="error-box">${escHtml(e.message)}</div>`;
+  }
+}
+
+async function resetPlayground() {
+  const btn = document.getElementById('reset-btn');
+  btn.disabled = true;
+  btn.textContent = 'Resetting…';
+  try {
+    await API.post('/api/playground/reset', {});
+    showToast('Playground reset to clean bookstore data!');
+  } catch (e) {
+    showToast('Reset failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 Reset Data';
+  }
+}
+
+(async () => {
+  await Session.ensureSession();
+  // Quick queries sidebar
+  const nav = document.getElementById('quick-queries');
+  nav.innerHTML = quickQueries.map(q => `
+    <div class="nav-item" onclick="loadQuery(${JSON.stringify(q.q).replace(/"/g,'&quot;')})">
+      <span class="icon">▶</span>
+      <span class="label" style="font-size:0.8rem">${q.label}</span>
+    </div>`).join('');
+  // Keyboard shortcut
+  document.getElementById('editor').addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runQuery(); }
+  });
+})();
+
+function loadQuery(q) {
+  document.getElementById('editor').value = q;
+  runQuery();
+}
+</script>
+</body>
+</html>

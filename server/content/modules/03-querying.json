@@ -1,0 +1,147 @@
+{
+  "id": 3,
+  "title": "Querying Deep Dive",
+  "description": "Master query operators, logical conditions, array queries, and projections.",
+  "icon": "🔍",
+  "lessons": [
+    {
+      "id": 1,
+      "title": "Comparison Operators",
+      "duration": "12 min",
+      "sections": [
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Comparison operators — SQL vs MongoDB",
+          "content": "// SQL: WHERE price > 10\ndb.books.find({ price: { $gt: 10 } })\n\n// SQL: WHERE price >= 10 AND price <= 20\ndb.books.find({ price: { $gte: 10, $lte: 20 } })\n\n// SQL: WHERE publishedYear != 2000\ndb.books.find({ publishedYear: { $ne: 2000 } })\n\n// SQL: WHERE genre IN ('fiction', 'classic')\ndb.books.find({ genres: { $in: ['fiction', 'classic'] } })\n\n// SQL: WHERE genre NOT IN ('fiction', 'classic')\ndb.books.find({ genres: { $nin: ['fiction', 'classic'] } })"
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "Operator mapping",
+          "table": [
+            ["SQL", "MongoDB", "Meaning"],
+            ["=", "{ field: value } or $eq", "Equals"],
+            ["!=  or  <>", "$ne", "Not equals"],
+            [">", "$gt", "Greater than"],
+            [">=", "$gte", "Greater than or equal"],
+            ["<", "$lt", "Less than"],
+            ["<=", "$lte", "Less than or equal"],
+            ["IN (...)", "$in: [...]", "Value in list"],
+            ["NOT IN (...)", "$nin: [...]", "Value not in list"]
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Logical Operators",
+      "duration": "10 min",
+      "sections": [
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "AND, OR, NOT, NOR",
+          "content": "// Implicit AND — fields in the same object are ANDed together\n// SQL: WHERE price > 10 AND inStock = true\ndb.books.find({ price: { $gt: 10 }, inStock: true })\n\n// Explicit $and — needed when same field appears twice\ndb.books.find({ $and: [\n  { publishedYear: { $gt: 1980 } },\n  { publishedYear: { $lt: 2010 } }\n]})\n\n// $or — SQL: WHERE genres = 'dystopia' OR price < 10\ndb.books.find({ $or: [\n  { genres: 'dystopia' },\n  { price: { $lt: 10 } }\n]})\n\n// $not — negate a condition\ndb.books.find({ price: { $not: { $gt: 15 } } })\n// equivalent to: WHERE price <= 15 OR price IS NULL\n\n// $nor — neither condition is true\ndb.books.find({ $nor: [\n  { inStock: true },\n  { price: { $lt: 10 } }\n]})"
+        },
+        {
+          "type": "tip",
+          "content": "**Performance tip:** Put the most selective filter first in an `$or` array — MongoDB evaluates them left to right and can short-circuit. Same advice applies in PostgreSQL WHERE clauses."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Array Queries",
+      "duration": "12 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "Querying arrays in MongoDB is one of the biggest advantages over SQL. You can search inside arrays without joins or subqueries."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Querying array fields",
+          "content": "// Find books where genres contains 'fiction'\n// (MongoDB checks if 'fiction' is any element of the array)\ndb.books.find({ genres: 'fiction' })\n\n// Find books where genres contains BOTH 'fiction' AND 'classic'\ndb.books.find({ genres: { $all: ['fiction', 'classic'] } })\n\n// Find books where genres has exactly 2 elements\ndb.books.find({ genres: { $size: 2 } })\n\n// $elemMatch — match on multiple conditions within a single array element\n// (useful for arrays of objects)\ndb.orders.find({\n  items: {\n    $elemMatch: { quantity: { $gte: 2 }, unitPrice: { $gt: 12 } }\n  }\n})\n\n// Access array by index — first genre is 'dystopia'\ndb.books.find({ 'genres.0': 'dystopia' })"
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "Array queries — the SQL headache vs MongoDB ease",
+          "table": [
+            ["SQL", "MongoDB"],
+            ["SELECT b.* FROM books b JOIN book_genres bg ON b.id = bg.book_id WHERE bg.genre = 'fiction'", "db.books.find({ genres: 'fiction' })"],
+            ["... WHERE bg.genre IN ('fiction', 'classic') GROUP BY b.id HAVING COUNT(*) = 2", "db.books.find({ genres: { $all: ['fiction', 'classic'] } })"]
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Element Operators & Regex",
+      "duration": "8 min",
+      "sections": [
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Field existence and type checks",
+          "content": "// Check if a field exists (SQL: WHERE col IS NOT NULL)\ndb.books.find({ promoCode: { $exists: true } })\ndb.books.find({ promoCode: { $exists: false } })  // field missing entirely\n\n// Check type — type number 2 = String, 16 = Int32, 8 = Boolean\ndb.books.find({ price: { $type: 'number' } })\n\n// Regex — SQL: WHERE title LIKE '%the%' (case-insensitive)\ndb.books.find({ title: { $regex: /the/i } })\ndb.books.find({ title: { $regex: 'the', $options: 'i' } })  // same thing\n\n// SQL: WHERE title LIKE 'The%'\ndb.books.find({ title: { $regex: /^The/ } })"
+        },
+        {
+          "type": "warning",
+          "content": "**Regex performance:** Like SQL `LIKE '%text%'`, a leading wildcard regex (`/text/`) cannot use an index. Anchored patterns (`/^text/`) can. Use MongoDB Atlas Search for full production text search."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Null vs $exists, and Index Selectivity",
+      "duration": "10 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "**The null vs $exists trap.** This is one of the most common MongoDB gotchas. Querying `{ field: null }` and `{ field: { $exists: false } }` look similar but behave differently."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "null vs $exists — not the same thing",
+          "content": "// { promoCode: null } matches TWO cases:\n//   1. Documents where promoCode field exists and is null\n//   2. Documents where promoCode field is completely absent\ndb.books.find({ promoCode: null })  // returns both types\n\n// { $exists: false } matches ONLY documents where the field is entirely missing\ndb.books.find({ promoCode: { $exists: false } })  // missing field only\n\n// { $exists: true } matches documents where the field exists (even if null)\ndb.books.find({ promoCode: { $exists: true } })   // exists, any value including null\n\n// To match ONLY documents where promoCode is explicitly null (not missing):\ndb.books.find({ promoCode: { $eq: null, $exists: true } })"
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "IS NULL vs field missing",
+          "table": [
+            ["SQL", "MongoDB", "Matches"],
+            ["WHERE promo_code IS NULL", "{ promoCode: null }", "null values AND missing fields"],
+            ["No SQL equivalent", "{ promoCode: { $exists: false } }", "Only missing fields"],
+            ["WHERE promo_code IS NOT NULL", "{ promoCode: { $ne: null } }", "Non-null values only"]
+          ]
+        },
+        {
+          "type": "text",
+          "content": "**Index selectivity** means how effectively an index narrows down results. A highly selective index matches very few documents for a given query value — so MongoDB does less work. A low-selectivity index matches many documents and may not help much."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "High vs low selectivity examples",
+          "content": "// HIGH selectivity — an index on email is very useful because\n// almost every email value is unique (1 doc out of millions)\ndb.users.find({ email: 'alice@example.com' })\n// → index returns 1 document, very fast\n\n// LOW selectivity — an index on inStock (only 2 values: true/false)\n// if 80% of books are inStock:true, the index matches 80% of all docs\ndb.books.find({ inStock: true })\n// → index may not help; full scan might be faster"
+        },
+        {
+          "type": "tip",
+          "content": "**Practical rule:** Index fields that have many distinct values (email, username, orderId). Be cautious indexing boolean or low-cardinality fields — MongoDB's query planner may ignore the index and do a collection scan instead, which can actually be faster."
+        },
+        {
+          "type": "text",
+          "content": "**$nor — neither condition is true.** `$nor` is the opposite of `$or`. It returns documents where ALL the listed conditions are false."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "$nor example",
+          "content": "// Find books that are NOT in stock AND NOT cheap (price >= 10)\ndb.books.find({ $nor: [\n  { inStock: true },\n  { price: { $lt: 10 } }\n]})\n// Both conditions must be false: not in stock, and price is not < 10"
+        }
+      ]
+    }
+  ]
+}

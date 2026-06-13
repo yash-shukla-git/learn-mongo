@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson — MongoDB Learning Platform</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/lesson.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="logo"><a href="index.html" style="color:inherit;text-decoration:none">🍃 <span>MongoDB</span></a></div>
+    <div class="spacer"></div>
+    <div class="streak-chip" id="streak-chip">🔥 <span id="streak-val">0</span></div>
+  </header>
+  <nav class="sidebar">
+    <div class="nav-section">Navigation</div>
+    <a class="nav-item" href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+    <a class="nav-item" href="dashboard.html"><span class="icon">📊</span><span class="label">Dashboard</span></a>
+    <a class="nav-item" href="playground.html"><span class="icon">⚡</span><span class="label">Playground</span></a>
+    <div class="nav-section">Lessons</div>
+    <div id="lesson-nav"></div>
+  </nav>
+  <main class="main">
+    <div id="content">
+      <div class="card" style="text-align:center;padding:40px;color:var(--text-muted)">Loading lesson…</div>
+    </div>
+  </main>
+</div>
+<script src="js/session.js"></script>
+<script src="js/api.js"></script>
+<script src="js/components/toast.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const moduleId = parseInt(params.get('m') || '1');
+const lessonId = parseInt(params.get('l') || '1');
+
+function renderSection(section) {
+  switch (section.type) {
+    case 'text':
+      return `<p>${section.content.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>')}</p>`;
+    case 'code':
+      return `<div class="code-heading">${section.heading || ''}</div><pre class="code-block">${escHtml(section.content)}</pre>`;
+    case 'tip':
+      return `<div class="tip-box">${section.content.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>')}</div>`;
+    case 'warning':
+      return `<div class="warning-box">${section.content.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`(.+?)`/g, '<code>$1</code>')}</div>`;
+    case 'sql-comparison': {
+      const rows = section.table || [];
+      const header = rows[0];
+      const body = rows.slice(1);
+      return `<div class="section-heading">🔄 ${section.heading || 'SQL vs MongoDB'}</div>
+        <table class="comparison-table">
+          <thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+          <tbody>${body.map(r => `<tr>${r.map(c => `<td>${escHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table>`;
+    }
+    default: return '';
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+(async () => {
+  await Session.ensureSession();
+  try {
+    const [lesson, mod] = await Promise.all([
+      API.get(`/api/lessons/${moduleId}/${lessonId}`),
+      API.get(`/api/modules/${moduleId}`),
+    ]);
+
+    document.title = `${lesson.title} — MongoDB Learning`;
+
+    // Sidebar
+    const navEl = document.getElementById('lesson-nav');
+    navEl.innerHTML = mod.lessons.map(l =>
+      `<a class="nav-item${l.id === lessonId ? ' active' : ''}" href="lesson.html?m=${moduleId}&l=${l.id}">
+        <span class="icon">${l.id === lessonId ? '▶' : '○'}</span>
+        <span class="label">${l.title}</span>
+      </a>`
+    ).join('');
+
+    const prevLesson = mod.lessons.find(l => l.id === lessonId - 1);
+    const nextLesson = mod.lessons.find(l => l.id === lessonId + 1);
+
+    document.getElementById('content').innerHTML = `
+      <div class="lesson-layout">
+        <div class="lesson-content">
+          <div class="lesson-nav">
+            <a href="index.html">Home</a> / <a href="lesson.html?m=${moduleId}&l=1">${mod.title}</a> / ${lesson.title}
+          </div>
+          <h1 class="lesson-title">${lesson.title}</h1>
+          <div class="lesson-meta">
+            <span>⏱ ${lesson.duration}</span>
+            <span>Module ${moduleId}: ${mod.title}</span>
+          </div>
+          <div class="lesson-section">
+            ${lesson.sections.map(renderSection).join('')}
+          </div>
+          <div class="lesson-prev-next">
+            ${prevLesson ? `<a class="btn btn-secondary btn-sm" href="lesson.html?m=${moduleId}&l=${prevLesson.id}">← ${prevLesson.title}</a>` : '<span></span>'}
+            <div style="display:flex;gap:10px;align-items:center">
+              <a class="btn btn-primary btn-sm" href="quiz.html?m=${moduleId}">📝 Practice Quiz</a>
+              ${nextLesson ? `<a class="btn btn-secondary btn-sm" href="lesson.html?m=${moduleId}&l=${nextLesson.id}">${nextLesson.title} →</a>` : ''}
+            </div>
+          </div>
+        </div>
+        <aside class="lesson-sidebar">
+          <div class="sidebar-card">
+            <h4>Module ${moduleId} Progress</h4>
+            <div class="progress-bar">
+              <div class="progress-bar-fill" style="width:${mod.completionPercent}%"></div>
+            </div>
+            <div class="progress-label"><span>Quiz progress</span><span>${mod.completionPercent}%</span></div>
+            <a class="btn btn-primary" style="width:100%;margin-top:14px;justify-content:center" href="quiz.html?m=${moduleId}">📝 Start Quiz</a>
+          </div>
+          <div class="sidebar-card">
+            <h4>All Lessons</h4>
+            <div class="lesson-list">
+              ${mod.lessons.map(l => `
+                <a class="lesson-list-item${l.id === lessonId ? ' active' : ''}" href="lesson.html?m=${moduleId}&l=${l.id}">
+                  ${l.title}
+                </a>`).join('')}
+            </div>
+          </div>
+          <div class="sidebar-card">
+            <h4>Quick Links</h4>
+            <div class="lesson-list">
+              <a class="lesson-list-item" href="playground.html">⚡ Open Playground</a>
+              <a class="lesson-list-item" href="dashboard.html">📊 View Progress</a>
+            </div>
+          </div>
+        </aside>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="card"><p style="color:var(--red)">Error: ${e.message}</p></div>`;
+  }
+})();
+</script>
+</body>
+</html>

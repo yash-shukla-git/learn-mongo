@@ -1,0 +1,25 @@
+:root {
+  --green: #00ed64;
+  --green-dark: #00b84a;
+  --green-dim: #00ed6433;
+  --dark: #001e2b;
+  --darker: #000f17;
+  --surface: #023047;
+  --surface2: #0a3d55;
+  --surface3: #0f4f70;
+  --text: #e8f4f8;
+  --text-dim: #8bacc0;
+  --text-muted: #4a7a96;
+  --accent: #00b8d9;
+  --accent2: #f4c842;
+  --red: #ef5350;
+  --orange: #ff7043;
+
+  --font-mono: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', ui-monospace, monospace;
+  --font-ui: 'Inter', system-ui, sans-serif;
+
+  --radius: 8px;
+  --radius-lg: 16px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --transition: 0.18s ease;
+}

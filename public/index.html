@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MongoDB Learning Platform</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="logo">🍃 <span>MongoDB</span> Learning Platform</div>
+    <div class="spacer"></div>
+    <div class="streak-chip" id="streak-chip">🔥 <span id="streak-val">0</span></div>
+    <div class="session-info" id="session-name">Loading…</div>
+  </header>
+  <nav class="sidebar">
+    <div class="nav-section">Course</div>
+    <a class="nav-item active" href="index.html"><span class="icon">🏠</span><span class="label">Home</span></a>
+    <a class="nav-item" href="dashboard.html"><span class="icon">📊</span><span class="label">Dashboard</span></a>
+    <a class="nav-item" href="playground.html"><span class="icon">⚡</span><span class="label">Playground</span></a>
+    <div class="nav-section">Modules</div>
+    <div id="module-nav"></div>
+  </nav>
+  <main class="main">
+    <div class="page-header">
+      <h1 id="greeting">Welcome back! 👋</h1>
+      <p>Your MongoDB learning journey — from PostgreSQL developer to MongoDB pro.</p>
+    </div>
+    <div class="stat-row" id="stats-row">
+      <div class="stat-card"><div class="value" id="stat-completion">0%</div><div class="label">Overall Progress</div></div>
+      <div class="stat-card gold"><div class="value" id="stat-streak">0</div><div class="label">Current Streak</div></div>
+      <div class="stat-card"><div class="value" id="stat-answered">0</div><div class="label">Questions Answered</div></div>
+      <div class="stat-card accent"><div class="value" id="stat-score">0</div><div class="label">Interview Score</div></div>
+    </div>
+    <div class="section-heading">📚 Course Modules</div>
+    <div class="module-grid" id="module-grid">
+      <div class="card" style="text-align:center;color:var(--text-muted);padding:40px">Loading modules…</div>
+    </div>
+  </main>
+</div>
+<script src="js/session.js"></script>
+<script src="js/api.js"></script>
+<script src="js/components/toast.js"></script>
+<script>
+(async () => {
+  await Session.ensureSession();
+  document.getElementById('session-name').textContent = Session.getName();
+  document.getElementById('greeting').textContent = `Welcome back, ${Session.getName()}! 👋`;
+
+  try {
+    const [modules, dash] = await Promise.all([
+      API.get('/api/modules'),
+      API.get('/api/dashboard'),
+    ]);
+
+    // Stats
+    document.getElementById('stat-completion').textContent = dash.overallCompletion + '%';
+    document.getElementById('stat-streak').textContent = dash.streakCount;
+    document.getElementById('stat-answered').textContent = dash.totalQuestionsAnswered;
+    document.getElementById('stat-score').textContent = dash.interviewReadinessScore;
+    document.getElementById('streak-val').textContent = dash.streakCount;
+
+    // Module nav
+    const navEl = document.getElementById('module-nav');
+    navEl.innerHTML = modules.map(m =>
+      `<a class="nav-item" href="lesson.html?m=${m.id}&l=1">
+        <span class="icon">${m.icon}</span>
+        <span class="label">${m.title}</span>
+      </a>`
+    ).join('');
+
+    // Module grid
+    const grid = document.getElementById('module-grid');
+    grid.innerHTML = modules.map(m => `
+      <div class="module-card" onclick="location.href='lesson.html?m=${m.id}&l=1'">
+        <div class="icon">${m.icon}</div>
+        <div class="title">${m.title}</div>
+        <div class="desc">${m.description}</div>
+        <div class="progress-bar" style="margin-bottom:10px">
+          <div class="progress-bar-fill" style="width:${m.completionPercent}%"></div>
+        </div>
+        <div class="meta">
+          <span class="completion">${m.completionPercent}% done</span>
+          <span>${m.questionCount} questions</span>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    showToast('Could not load modules: ' + e.message, 'error');
+  }
+})();
+</script>
+</body>
+</html>

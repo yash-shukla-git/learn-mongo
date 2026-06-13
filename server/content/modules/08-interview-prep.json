@@ -1,0 +1,127 @@
+{
+  "id": 8,
+  "title": "Interview Prep",
+  "description": "30+ interview questions at easy, medium, and hard levels — covering concepts, gotchas, and optimization scenarios.",
+  "icon": "🎯",
+  "lessons": [
+    {
+      "id": 1,
+      "title": "Concepts You Must Know Cold",
+      "duration": "20 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "These are the topics that come up in virtually every MongoDB interview. Understand the *why*, not just the *what*."
+        },
+        {
+          "type": "code",
+          "lang": "text",
+          "heading": "Top 10 must-know concepts",
+          "content": "1. BSON vs JSON — MongoDB stores BSON; it supports ObjectId, Date, Binary\n   (JSON has no Date type or binary types)\n\n2. The _id field — automatically created ObjectId; indexed by default;\n   immutable after creation\n\n3. Collection scans vs Index scans — COLLSCAN reads all docs (slow at scale);\n   IXSCAN uses an index (fast)\n\n4. Atomic operations — single-document operations are always atomic;\n   multi-document atomicity requires transactions\n\n5. Transactions — MongoDB 4.0+ supports multi-document ACID transactions;\n   needed for bank transfers, inventory updates across collections\n\n6. Sharding — horizontal scaling by partitioning data across multiple servers;\n   shard key choice is critical\n\n7. Replica Sets — 3+ node HA clusters; primary handles writes;\n   secondaries replicate and can serve reads\n\n8. Write Concern — controls durability: w:1 (primary ack), w:'majority' (safer)\n\n9. Read Preference — where reads go: primary, secondary, nearest\n\n10. TTL Indexes — automatically delete documents after a time period:\n    createIndex({ createdAt: 1 }, { expireAfterSeconds: 3600 })"
+        },
+        {
+          "type": "tip",
+          "content": "**Common interview trap:** 'Is MongoDB ACID compliant?' Answer: Yes — *single-document* operations are always ACID. Multi-document transactions require explicit session/transaction blocks (MongoDB 4.0+). Most PostgreSQL developers assume all databases are always fully ACID — MongoDB is, but with that nuance."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Performance Gotchas",
+      "duration": "15 min",
+      "sections": [
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Common performance mistakes",
+          "content": "// ❌ MISTAKE 1: Missing index on a frequently queried field\ndb.orders.find({ 'customer.email': 'alice@example.com' })\n// Fix: db.orders.createIndex({ 'customer.email': 1 })\n\n// ❌ MISTAKE 2: Returning all fields when you only need a few\ndb.books.find({})  // Fix: db.books.find({}, { title: 1, price: 1 })\n\n// ❌ MISTAKE 3: Using $where (JavaScript eval — slow and insecure)\ndb.books.find({ $where: 'this.price > 10' })  // Fix: db.books.find({ price: { $gt: 10 } })\n\n// ❌ MISTAKE 4: $lookup before $match in aggregation\ndb.books.aggregate([{ $lookup: { ... } }, { $match: { inStock: true } }])\n// Fix: $match FIRST\ndb.books.aggregate([{ $match: { inStock: true } }, { $lookup: { ... } }])\n\n// ❌ MISTAKE 5: Large skip() values for pagination\ndb.books.find().skip(10000).limit(20)  // slow — walks 10000 docs\n// Fix: range-based pagination with { _id: { $gt: lastSeenId } }"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Replica Sets, Sharding, and Write/Read Concerns",
+      "duration": "15 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "**Replica sets in depth.** A replica set is 3+ MongoDB instances keeping identical copies of your data. The **primary** receives all writes. **Secondaries** replicate by tailing the **oplog** (operations log) — a capped collection on the primary recording every write. If the primary goes down, secondaries elect a new one automatically using a Raft-based consensus algorithm."
+        },
+        {
+          "type": "text",
+          "content": "**The oplog** is a special capped collection in the `local` database. Every write to the primary is recorded here as an operation (insert, update, delete). Secondaries continuously read the oplog and apply the same operations to stay in sync. Change Streams (see next lesson) also work by tailing the oplog."
+        },
+        {
+          "type": "text",
+          "content": "**Write Concern** — how durable must a write be before MongoDB responds? The two most important values are: `w: 1` (default) — the primary has written it. `w: 'majority'` — more than half the replica set has written it. Higher write concern = more durable, slightly higher latency."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Write concern and read concern",
+          "content": "// Write with majority concern — survives primary failure\nawait db.collection('orders').insertOne(doc, { writeConcern: { w: 'majority' } });\n\n// Read concern: 'local' = read from current node (may be slightly stale)\n// Read concern: 'majority' = read only data confirmed by majority (stronger)\nawait db.collection('orders').findOne(filter, { readConcern: { level: 'majority' } });"
+        },
+        {
+          "type": "text",
+          "content": "**Read Preference** controls which replica set member handles reads. `primary` (default) — always read from primary, consistent. `secondaryPreferred` — read from secondaries when available (reduces primary load, but secondaries may be slightly behind = eventual consistency)."
+        },
+        {
+          "type": "text",
+          "content": "**Sharding** is horizontal scaling — splitting your data across multiple servers (shards) based on a shard key. Each shard holds a subset of documents. A `mongos` router sits in front and directs queries to the right shard. Choosing the right shard key is critical: a poorly chosen key creates 'hot spots' where one shard gets all the traffic."
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "Scaling: PostgreSQL vs MongoDB",
+          "table": [
+            ["Approach", "PostgreSQL", "MongoDB"],
+            ["Vertical scaling", "Add more CPU/RAM to one server", "Same"],
+            ["Read scaling", "Read replicas", "Replica set secondaries"],
+            ["Write scaling", "Requires partitioning (manual)", "Built-in sharding"],
+            ["Horizontal scaling", "Complex (Citus/manual)", "Native sharding via mongos"]
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Change Streams, GridFS, and Working Set",
+      "duration": "12 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "**Change Streams** let your application listen to real-time database changes — inserts, updates, and deletes — as they happen. Internally they tail the oplog. Use cases: real-time dashboards, push notifications, event-driven architectures, cache invalidation."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Change Streams — listen to real-time changes",
+          "content": "const changeStream = db.collection('orders').watch();\n\nfor await (const change of changeStream) {\n  console.log(change.operationType);  // 'insert', 'update', 'delete'\n  console.log(change.fullDocument);   // the document that changed\n  // React: send a push notification, invalidate cache, etc.\n}"
+        },
+        {
+          "type": "text",
+          "content": "**GridFS** is MongoDB's mechanism for storing files larger than the 16 MB document limit. It splits the file into 255 KB chunks, stores them in a `fs.chunks` collection, and keeps metadata in `fs.files`. Use GridFS for large videos, audio files, or any binary over 16 MB. For small files, store them as BSON Binary directly in a document."
+        },
+        {
+          "type": "text",
+          "content": "**The Working Set** is the portion of your data and indexes that is actively read. MongoDB relies heavily on the operating system's memory cache (RAM) for fast reads. If your working set fits in RAM, reads are served from memory and are extremely fast. If it doesn't, MongoDB hits disk on every cache miss — orders of magnitude slower. This is the most important factor in MongoDB production performance and why RAM sizing matters."
+        },
+        {
+          "type": "text",
+          "content": "**Write Amplification** is a hidden cost of large embedded arrays. When you update a single field inside a large document, MongoDB rewrites the entire document to disk. A 500 KB document with a large embedded array means every small field update writes 500 KB. Moving frequently-updated data to a separate small collection fixes this."
+        },
+        {
+          "type": "text",
+          "content": "**WiredTiger** has been MongoDB's default storage engine since version 3.2. Key features: document-level locking (many concurrent writes without blocking), Snappy/zlib compression (typically 60–80% size reduction), and multi-version concurrency control (MVCC). The old `mmap` engine was removed in MongoDB 4.2."
+        },
+        {
+          "type": "text",
+          "content": "**The query planner caches its decisions.** After a query runs, MongoDB caches which index won the 'race'. The cache is invalidated when the collection changes significantly (e.g. many writes) or when you add/drop an index. You can force a specific index with `.hint({ fieldName: 1 })`."
+        },
+        {
+          "type": "text",
+          "content": "**Index cardinality** is the number of distinct values a field can have. High cardinality (email: millions of values) = selective index = fast queries. Low cardinality (boolean: 2 values) = non-selective = the index may be ignored by the query planner in favour of a collection scan. This is why indexing a boolean field rarely helps."
+        }
+      ]
+    }
+  ]
+}

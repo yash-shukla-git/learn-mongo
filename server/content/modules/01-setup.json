@@ -1,0 +1,170 @@
+{
+  "id": 1,
+  "title": "Setup & Mental Model",
+  "description": "Install MongoDB, understand the document model, and map your SQL knowledge to MongoDB concepts.",
+  "icon": "🗄️",
+  "lessons": [
+    {
+      "id": 1,
+      "title": "What is MongoDB?",
+      "duration": "8 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "MongoDB is a **document database** — instead of storing data in rows and columns like PostgreSQL, it stores data as JSON-like **documents** inside **collections**. Think of a document as a very flexible row that can hold nested objects, arrays, and mixed types all in one place."
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "The Core Vocabulary Shift",
+          "table": [
+            ["PostgreSQL", "MongoDB", "Think of it as…"],
+            ["Database", "Database", "Same concept"],
+            ["Table", "Collection", "A group of similar documents"],
+            ["Row", "Document", "One record (as a JSON object)"],
+            ["Column", "Field", "A key inside the document"],
+            ["Primary Key", "_id field", "Auto-created by MongoDB"],
+            ["JOIN", "$lookup (aggregation)", "Linked collections"],
+            ["Index", "Index", "Same concept, similar syntax"],
+            ["SCHEMA (strict)", "Schema-optional", "Flexible by default"]
+          ]
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "A PostgreSQL row vs. a MongoDB document",
+          "content": "-- PostgreSQL: books table (rigid schema)\nCREATE TABLE books (\n  id SERIAL PRIMARY KEY,\n  title VARCHAR(255),\n  published_year INT,\n  price DECIMAL(6,2)\n);\n\n// MongoDB: books collection (flexible)\n{\n  _id: ObjectId(\"...\"),\n  title: \"1984\",\n  publishedYear: 1949,\n  price: 12.99,\n  genres: [\"dystopia\", \"classic\"],   // arrays are native!\n  author: {                           // embedded objects too!\n    name: \"George Orwell\",\n    nationality: \"British\"\n  }\n}"
+        },
+        {
+          "type": "tip",
+          "content": "**Key insight:** In PostgreSQL you normalise everything into separate tables and JOINs bring them back together. In MongoDB, related data is often stored together inside the same document — fewer reads, simpler queries."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Installing MongoDB & Compass",
+      "duration": "5 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "You already have MongoDB running locally (confirmed during setup). Here are the three tools you'll use throughout this course:"
+        },
+        {
+          "type": "code",
+          "lang": "bash",
+          "heading": "Your MongoDB toolkit",
+          "content": "# mongosh — the MongoDB shell (like psql for PostgreSQL)\nmongosh\n\n# Common mongosh commands\nshow dbs           # list databases  →  \\l in psql\nuse bookstore      # switch database →  \\c bookstore in psql\nshow collections   # list tables     →  \\dt in psql\ndb.books.find()    # query a table   →  SELECT * FROM books;\n\n# Exit the shell\nexit"
+        },
+        {
+          "type": "tip",
+          "content": "**MongoDB Compass** is a GUI tool (like pgAdmin or TablePlus) — great for browsing documents visually. Download it from mongodb.com/try/download/compass. This course also has a built-in playground tab you can use directly in the browser."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "The Document Model Deep Dive",
+      "duration": "10 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "Every document in MongoDB is stored in **BSON** (Binary JSON), which gives you richer types than plain JSON. Here are all the types you'll encounter:"
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "BSON types with SQL equivalents",
+          "content": "{\n  _id:          ObjectId(\"...\"),    // Auto-generated unique ID (like SERIAL PRIMARY KEY)\n  title:        \"1984\",             // String   → VARCHAR / TEXT\n  publishedYear: 1949,              // Integer  → INT\n  price:        12.99,              // Double   → DECIMAL\n  inStock:      true,               // Boolean  → BOOLEAN\n  tags:         [\"classic\", \"dystopia\"],  // Array  → no SQL equivalent (or junction table)\n  author: {                         // Embedded document → no SQL equiv (or FK to another table)\n    name: \"Orwell\",\n    born: 1903\n  },\n  publishedAt:  ISODate(\"1949-06-08\"),  // Date  → TIMESTAMP\n  deletedAt:    null                    // Null  → NULL\n}"
+        },
+        {
+          "type": "warning",
+          "content": "**Watch out:** MongoDB field names are case-sensitive. `publishedYear` and `PublishedYear` are different fields. PostgreSQL columns are case-insensitive by default."
+        },
+        {
+          "type": "tip",
+          "content": "**The _id field:** MongoDB automatically creates `_id` as an ObjectId (a 12-byte unique identifier) unless you provide your own. It's indexed automatically — just like a PRIMARY KEY. You can use any unique value (string, int, UUID) as `_id` if you prefer."
+        },
+        {
+          "type": "text",
+          "content": "**ObjectId is not just a random number.** It is a 12-byte value that encodes four pieces of information: a 4-byte Unix timestamp (seconds since epoch), a 5-byte random value unique to the machine and process, and a 3-byte incrementing counter. This design guarantees uniqueness across many servers inserting at the same time — no central coordinator needed."
+        },
+        {
+          "type": "text",
+          "content": "**Providing your own _id:** You can set `_id` to any unique value — a string, integer, or UUID — by including it in the document: `db.books.insertOne({ _id: '978-0451524935', title: '1984' })`. MongoDB uses your value instead of generating an ObjectId."
+        },
+        {
+          "type": "text",
+          "content": "**The 16 MB document size limit:** A single MongoDB document cannot exceed 16 MB. This is usually plenty, but it explains why you should never embed a list that could grow very large (like all orders for a user, or all comments on a post). Those belong in a separate collection."
+        },
+        {
+          "type": "text",
+          "content": "**Lazy creation:** MongoDB does not require you to run `CREATE DATABASE` or `CREATE TABLE`. Databases and collections are created automatically the first time you insert a document. Running `use newdb` in mongosh just sets the active database — it does not create anything. The first `insertOne()` does."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "MongoDB in Distributed Systems: ACID, BASE & Replica Sets",
+      "duration": "12 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "PostgreSQL gives you full ACID guarantees on every transaction. MongoDB's story is more nuanced — it depends on the scope of the operation."
+        },
+        {
+          "type": "text",
+          "content": "**Single-document operations are always ACID.** When you call `insertOne`, `updateOne`, or `deleteOne`, that operation is atomic, consistent, isolated, and durable. Either the full write succeeds or nothing changes — no partial states."
+        },
+        {
+          "type": "text",
+          "content": "**Multi-document operations are NOT atomic by default.** If you call `updateMany` on 1000 documents and the server crashes halfway, some documents will be updated and some won't. For operations that must succeed or fail as a unit across multiple documents (like a bank transfer), you need an explicit **transaction** (available since MongoDB 4.0)."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Multi-document transaction (MongoDB 4.0+)",
+          "content": "const session = client.startSession();\ntry {\n  session.startTransaction();\n  await accounts.updateOne({ _id: fromId }, { $inc: { balance: -100 } }, { session });\n  await accounts.updateOne({ _id: toId },   { $inc: { balance: +100 } }, { session });\n  await session.commitTransaction();\n} catch (e) {\n  await session.abortTransaction();  // rolls back both updates\n} finally {\n  session.endSession();\n}"
+        },
+        {
+          "type": "text",
+          "content": "**BASE vs ACID** — In distributed databases the trade-off has a name: BASE stands for **Basically Available** (the system stays responsive even under failures), **Soft state** (data may temporarily differ across nodes), and **Eventual consistency** (all nodes will eventually agree on the same data). This contrasts with ACID's strict consistency guarantees."
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "ACID vs BASE",
+          "table": [
+            ["Property", "ACID (PostgreSQL)", "BASE (distributed MongoDB)"],
+            ["Consistency", "Immediate, strict", "Eventual"],
+            ["Availability", "May block during failures", "Always responds"],
+            ["Scope", "Per transaction", "Per document (by default)"],
+            ["Multi-doc atomic", "Yes, always", "Requires explicit transaction"]
+          ]
+        },
+        {
+          "type": "text",
+          "content": "**Replica Sets — high availability.** A replica set is a group of MongoDB servers that all hold the same data. There is one **primary** node (handles all writes) and one or more **secondary** nodes (replicate data from the primary and can serve reads). If the primary goes down, the remaining members hold an automatic **election** and one of the secondaries becomes the new primary — typically within 10–30 seconds. Your application reconnects automatically."
+        },
+        {
+          "type": "code",
+          "lang": "text",
+          "heading": "Replica set structure",
+          "content": "Primary  ←──── client writes go here\n   │\n   ├── Secondary 1  (replicates from primary, can serve reads)\n   └── Secondary 2  (replicates from primary, can serve reads)\n\nIf primary fails:\n  → Secondaries hold an election\n  → One secondary is promoted to primary\n  → Application reconnects automatically"
+        },
+        {
+          "type": "text",
+          "content": "**Write Concern** controls how durable a write is before MongoDB confirms it. `w: 1` (default) means the primary acknowledges the write. `w: 'majority'` means more than half the replica set must confirm before MongoDB responds — safer but slightly slower."
+        },
+        {
+          "type": "text",
+          "content": "**Capped Collections** are fixed-size collections that work like circular buffers. When a capped collection reaches its size limit, the oldest documents are automatically overwritten by new ones. Useful for logs and event streams where you only care about the most recent N entries."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Creating a capped collection",
+          "content": "// Create a capped collection that holds at most 1000 documents\ndb.createCollection('logs', { capped: true, size: 10485760, max: 1000 })\n// size = max bytes, max = max documents\n// Oldest document is automatically removed when limit is hit"
+        }
+      ]
+    }
+  ]
+}

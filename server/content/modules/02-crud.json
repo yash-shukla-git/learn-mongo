@@ -1,0 +1,204 @@
+{
+  "id": 2,
+  "title": "CRUD Fundamentals",
+  "description": "Create, Read, Update, and Delete documents. Map every SQL DML statement to its MongoDB equivalent.",
+  "icon": "✏️",
+  "lessons": [
+    {
+      "id": 1,
+      "title": "Insert Documents",
+      "duration": "10 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "MongoDB gives you two insert methods: `insertOne()` for a single document and `insertMany()` for a batch. Both return an `acknowledged` result with the inserted `_id`(s)."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "insertOne — add a single document",
+          "content": "// Insert one book\ndb.books.insertOne({\n  title: \"Dune\",\n  authorName: \"Frank Herbert\",\n  publishedYear: 1965,\n  price: 14.99,\n  genres: [\"science fiction\"],\n  inStock: true\n})\n\n// Result:\n// { acknowledged: true, insertedId: ObjectId(\"...\") }"
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "INSERT INTO vs insertOne",
+          "table": [
+            ["PostgreSQL", "MongoDB"],
+            ["INSERT INTO books (title, price) VALUES ('Dune', 14.99);", "db.books.insertOne({ title: 'Dune', price: 14.99 })"],
+            ["Returns row count", "Returns { acknowledged, insertedId }"],
+            ["Schema enforced by table definition", "Any shape is accepted"]
+          ]
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "insertMany — batch insert",
+          "content": "db.books.insertMany([\n  { title: \"Foundation\", authorName: \"Isaac Asimov\", price: 12.99 },\n  { title: \"Dune Messiah\", authorName: \"Frank Herbert\", price: 13.99 }\n])\n\n// Result:\n// { acknowledged: true, insertedIds: { '0': ObjectId, '1': ObjectId } }"
+        },
+        {
+          "type": "tip",
+          "content": "**Ordered vs unordered inserts:** By default, `insertMany` is **ordered** — it stops on the first error. Pass `{ ordered: false }` to continue inserting remaining docs even if one fails. PostgreSQL has no direct equivalent; it always rolls back the whole statement on error."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Find Documents",
+      "duration": "12 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "The `find()` method is the `SELECT` of MongoDB. Pass a **filter object** as the first argument (the WHERE clause), and an optional **projection** as the second argument (the column list)."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "find() — basic queries",
+          "content": "// SELECT * FROM books;\ndb.books.find()\n\n// SELECT * FROM books WHERE inStock = true;\ndb.books.find({ inStock: true })\n\n// SELECT title, price FROM books WHERE inStock = true;\ndb.books.find(\n  { inStock: true },         // filter (WHERE)\n  { title: 1, price: 1 }    // projection (SELECT columns) — 1 = include, 0 = exclude\n)\n\n// SELECT * FROM books LIMIT 5;\ndb.books.find().limit(5)\n\n// SELECT * FROM books ORDER BY price DESC;\ndb.books.find().sort({ price: -1 })   // -1 = DESC, 1 = ASC\n\n// SELECT * FROM books ORDER BY price DESC LIMIT 5 OFFSET 10;\ndb.books.find().sort({ price: -1 }).skip(10).limit(5)"
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "findOne() — return just the first match",
+          "content": "// SELECT * FROM books WHERE title = '1984' LIMIT 1;\ndb.books.findOne({ title: '1984' })\n\n// Returns the document directly (not a cursor)\n// Returns null if no match found — not an empty array"
+        },
+        {
+          "type": "tip",
+          "content": "**Cursors:** `find()` returns a **cursor** (lazy iterator), not all results at once. In mongosh, results are shown automatically. In Node.js code, call `.toArray()` to get all results, or iterate the cursor with `for await (const doc of cursor)`."
+        },
+        {
+          "type": "warning",
+          "content": "**Projection gotcha:** You cannot mix includes (1) and excludes (0) in the same projection — except for `_id` which can always be excluded with `_id: 0`."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Update Documents",
+      "duration": "15 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "MongoDB has several update methods. The key concept is **update operators** — these are special keywords starting with `$` that tell MongoDB *how* to change the document, not just *what value* to set."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "The most important update operators",
+          "content": "// $set  — set a field to a value (like SQL SET col = value)\ndb.books.updateOne(\n  { title: '1984' },\n  { $set: { price: 14.99, inStock: true } }\n)\n\n// $inc  — increment a numeric field\ndb.books.updateOne(\n  { title: '1984' },\n  { $inc: { price: 2 } }   // price = price + 2\n)\n\n// $unset — remove a field entirely (no SQL equivalent — closest is SET col = NULL)\ndb.books.updateOne(\n  { title: '1984' },\n  { $unset: { promoCode: '' } }\n)\n\n// $push  — add an element to an array\ndb.books.updateOne(\n  { title: '1984' },\n  { $push: { tags: 'must-read' } }\n)\n\n// $pull  — remove an element from an array\ndb.books.updateOne(\n  { title: '1984' },\n  { $pull: { tags: 'must-read' } }\n)"
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "UPDATE vs updateOne/updateMany",
+          "table": [
+            ["PostgreSQL", "MongoDB"],
+            ["UPDATE books SET price = 14.99 WHERE title = '1984';", "db.books.updateOne({ title: '1984' }, { $set: { price: 14.99 } })"],
+            ["UPDATE books SET price = price + 2 WHERE id = 1;", "db.books.updateOne({ _id: id }, { $inc: { price: 2 } })"],
+            ["UPDATE books SET price = 14.99;  (all rows)", "db.books.updateMany({}, { $set: { price: 14.99 } })"]
+          ]
+        },
+        {
+          "type": "warning",
+          "content": "**Never do this:** `db.books.updateOne({ title: '1984' }, { price: 15 })` — without an update operator like `$set`, MongoDB **replaces the entire document** with `{ price: 15 }`. All other fields are lost! Always use `$set` to update specific fields."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "upsert — insert if not found (like INSERT ... ON CONFLICT DO UPDATE)",
+          "content": "db.books.updateOne(\n  { title: 'New Book' },\n  { $set: { price: 19.99 } },\n  { upsert: true }   // creates the document if it doesn't exist\n)\n// Returns: { matchedCount: 0, modifiedCount: 0, upsertedId: ObjectId(...) }"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Delete Documents",
+      "duration": "8 min",
+      "sections": [
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "deleteOne and deleteMany",
+          "content": "// DELETE FROM books WHERE title = '1984';  (just the first match)\ndb.books.deleteOne({ title: '1984' })\n// Returns: { acknowledged: true, deletedCount: 1 }\n\n// DELETE FROM books WHERE publishedYear < 1900;\ndb.books.deleteMany({ publishedYear: { $lt: 1900 } })\n// Returns: { acknowledged: true, deletedCount: N }\n\n// DELETE FROM books;  (delete ALL — dangerous!)\ndb.books.deleteMany({})\n\n// findOneAndDelete — get the doc before deleting it\nconst deleted = await db.collection('books').findOneAndDelete({ title: '1984' })\nconsole.log(deleted)  // the deleted document is returned"
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "DELETE vs deleteOne/deleteMany",
+          "table": [
+            ["PostgreSQL", "MongoDB"],
+            ["DELETE FROM books WHERE title = '1984';", "db.books.deleteOne({ title: '1984' })"],
+            ["DELETE FROM books WHERE year < 1900;", "db.books.deleteMany({ publishedYear: { $lt: 1900 } })"],
+            ["DELETE FROM books RETURNING *;", "db.collection.findOneAndDelete(filter)"]
+          ]
+        },
+        {
+          "type": "tip",
+          "content": "**countDocuments()** counts matching documents: `db.books.countDocuments({ inStock: true })` — equivalent to `SELECT COUNT(*) FROM books WHERE in_stock = true`."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Cursors, findOneAndUpdate, and Pagination",
+      "duration": "12 min",
+      "sections": [
+        {
+          "type": "text",
+          "content": "**find() returns a cursor, not an array.** A cursor is a lazy iterator — it does not load all documents into memory at once. In mongosh, the shell automatically iterates and displays results. In Node.js code, you must consume the cursor explicitly."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Consuming a cursor in Node.js",
+          "content": "// Option 1: .toArray() — load all results into memory at once\nconst books = await db.collection('books').find({ inStock: true }).toArray();\n\n// Option 2: for-await-of — process one document at a time (memory-efficient)\nfor await (const book of db.collection('books').find({ inStock: true })) {\n  console.log(book.title);\n}\n\n// findOne() is different — returns a document directly (or null), never a cursor\nconst book = await db.collection('books').findOne({ title: '1984' });\n// book is the document object, or null if not found — NOT a cursor"
+        },
+        {
+          "type": "text",
+          "content": "**findOneAndUpdate** vs **updateOne** — these are different in what they return. `updateOne` returns metadata (matchedCount, modifiedCount). `findOneAndUpdate` returns the actual document — either before or after the update."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "findOneAndUpdate — get the document back",
+          "content": "// updateOne — returns stats only\nconst result = await db.collection('books').updateOne(\n  { title: '1984' },\n  { $set: { price: 15.99 } }\n);\nconsole.log(result); // { acknowledged: true, matchedCount: 1, modifiedCount: 1 }\n// The actual document is NOT returned\n\n// findOneAndUpdate — returns the document\nconst updatedBook = await db.collection('books').findOneAndUpdate(\n  { title: '1984' },\n  { $set: { price: 15.99 } },\n  { returnDocument: 'after' }   // 'after' = return the updated doc, 'before' = return original\n);\nconsole.log(updatedBook.price); // 15.99"
+        },
+        {
+          "type": "sql-comparison",
+          "heading": "Returning the document after update",
+          "table": [
+            ["PostgreSQL", "MongoDB"],
+            ["UPDATE books SET price=15.99 WHERE title='1984' RETURNING *;", "db.collection('books').findOneAndUpdate(filter, update, { returnDocument: 'after' })"],
+            ["Returns the updated row", "Returns the updated document"]
+          ]
+        },
+        {
+          "type": "text",
+          "content": "**insertMany is faster than looping insertOne.** When you need to insert many documents, always use `insertMany` — it sends all documents in a single network request. A loop of 1000 `insertOne` calls sends 1000 separate network round trips."
+        },
+        {
+          "type": "text",
+          "content": "**Ordered vs unordered insertMany.** By default, `insertMany` is ordered — it stops at the first error (e.g. a duplicate key). Pass `{ ordered: false }` to continue inserting remaining documents even if one fails."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "ordered: false — don't stop on error",
+          "content": "db.books.insertMany(\n  [doc1, doc2, doc3],\n  { ordered: false }   // doc3 inserts even if doc2 fails\n)"
+        },
+        {
+          "type": "text",
+          "content": "**Pagination with skip() has a performance problem.** `.skip(1000).limit(10)` makes MongoDB read and discard 1000 documents before returning 10 — this gets slower as the page number increases. The better pattern is range-based pagination using the last seen `_id`."
+        },
+        {
+          "type": "code",
+          "lang": "javascript",
+          "heading": "Range-based pagination (fast) vs skip-based (slow)",
+          "content": "// ❌ SLOW — skip grows as pages increase\ndb.books.find().sort({ _id: 1 }).skip(pageNum * 20).limit(20)\n\n// ✅ FAST — always O(1), uses the index on _id\n// First page:\nconst page1 = await db.collection('books').find().sort({ _id: 1 }).limit(20).toArray();\nconst lastId = page1[page1.length - 1]._id;\n\n// Next page: start after the last seen _id\nconst page2 = await db.collection('books')\n  .find({ _id: { $gt: lastId } })\n  .sort({ _id: 1 })\n  .limit(20)\n  .toArray();"
+        },
+        {
+          "type": "warning",
+          "content": "**The skip() trap:** Page 1 is fast, page 10 is OK, page 500 is very slow. This is the same problem as `OFFSET 10000` in PostgreSQL — both databases have to walk through and discard all skipped rows/documents."
+        }
+      ]
+    }
+  ]
+}
