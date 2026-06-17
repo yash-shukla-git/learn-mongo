@@ -110,7 +110,10 @@ function checkAnswer(question, userAnswer) {
   }
 
   if (question.type === 'live-query') {
-    const expected = String(question.expectedQuery || question.correctAnswer || '').trim().toLowerCase();
+    if (question.correctAnswer) {
+      return ua === String(question.correctAnswer).trim().toLowerCase();
+    }
+    const expected = String(question.expectedQuery || '').trim().toLowerCase();
     return ua === expected;
   }
 
